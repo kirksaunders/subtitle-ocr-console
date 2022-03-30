@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "subtitle-ocr-console": {
+      "commandName": "Project",
+      "workingDirectory": "$(ProjectDir)"
+    }
+  }
+}

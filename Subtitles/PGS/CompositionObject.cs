@@ -1,0 +1,66 @@
+namespace subtitle_ocr_console.Subtitles.PGS;
+
+class CompositionObject
+{
+    public ushort ObjectID { get; private set; }
+    public byte WindowID { get; private set; }
+    public bool Cropped { get; private set; }
+    public ushort HorizontalPosition { get; private set; }
+    public ushort VerticalPosition { get; private set; }
+    public ushort CropHorizontalPosition { get; private set; }
+    public ushort CropVerticalPosition { get; private set; }
+    public ushort CropWidth { get; private set; }
+    public ushort CropHeight { get; private set; }
+
+    private CompositionObject()
+    {
+    }
+
+    public static CompositionObject ReadFromBinary(BinaryReader reader)
+    {
+        var instance = new CompositionObject();
+        instance.InitializeFromBinary(reader);
+
+        return instance;
+    }
+
+    private void InitializeFromBinary(BinaryReader reader)
+    {
+        try
+        {
+            ObjectID = reader.ReadUInt16();
+            WindowID = reader.ReadByte();
+
+            byte flag = reader.ReadByte();
+
+            switch (flag)
+            {
+                case 0x00:
+                    Cropped = false;
+                    break;
+
+                case 0x80:
+                    Cropped = true;
+                    break;
+
+                default:
+                    throw new PGSReadException($"Unknown object cropped flag: {flag}");
+            }
+
+            HorizontalPosition = reader.ReadUInt16();
+            VerticalPosition = reader.ReadUInt16();
+
+            if (Cropped)
+            {
+                CropHorizontalPosition = reader.ReadUInt16();
+                CropVerticalPosition = reader.ReadUInt16();
+                CropWidth = reader.ReadUInt16();
+                CropHeight = reader.ReadUInt16();
+            }
+        }
+        catch (Exception ex) when (ex is not PGSReadException)
+        {
+            throw new PGSReadException("Internal exception when reading composition object", ex);
+        }
+    }
+}
