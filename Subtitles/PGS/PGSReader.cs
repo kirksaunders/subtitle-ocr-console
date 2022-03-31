@@ -5,45 +5,38 @@ public class PGSReader
 {
     private List<Segment> _segments = new();
 
-    private PGSReader()
+    public PGSReader(BinaryReader reader)
     {
-    }
-
-    public static PGSReader ReadFromBinary(BinaryReader reader)
-    {
-        var instance = new PGSReader();
-        instance.InitializeFromBinary(reader);
-
-        return instance;
+        InitializeFromBinary(reader);
     }
 
     private void InitializeFromBinary(BinaryReader reader)
     {
         while (reader.BaseStream.Position != reader.BaseStream.Length)
         {
-            var header = SegmentHeader.ReadFromBinary(reader);
+            var header = new SegmentHeader(reader);
 
             Segment segment;
             switch (header.Type)
             {
                 case SegmentHeader.SegmentType.PDS:
-                    segment = PDSegment.ReadFromBinary(header, reader);
+                    segment = new PDSegment(header, reader);
                     break;
 
                 case SegmentHeader.SegmentType.ODS:
-                    segment = ODSegment.ReadFromBinary(header, reader);
+                    segment = new ODSegment(header, reader);
                     break;
 
                 case SegmentHeader.SegmentType.PCS:
-                    segment = PCSegment.ReadFromBinary(header, reader);
+                    segment = new PCSegment(header, reader);
                     break;
 
                 case SegmentHeader.SegmentType.WDS:
-                    segment = WDSegment.ReadFromBinary(header, reader);
+                    segment = new WDSegment(header, reader);
                     break;
 
                 case SegmentHeader.SegmentType.END:
-                    segment = EndSegment.ReadFromBinary(header, reader);
+                    segment = new EndSegment(header, reader);
                     break;
 
                 default:

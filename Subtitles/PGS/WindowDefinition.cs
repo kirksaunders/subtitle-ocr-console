@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace subtitle_ocr_console.Subtitles.PGS;
 
 class WindowDefinition
@@ -10,16 +8,9 @@ class WindowDefinition
     public ushort Width { get; private set; }
     public ushort Height { get; private set; }
 
-    private WindowDefinition()
+    public WindowDefinition(BinaryReader reader)
     {
-    }
-
-    public static WindowDefinition ReadFromBinary(BinaryReader reader)
-    {
-        var instance = new WindowDefinition();
-        instance.InitializeFromBinary(reader);
-
-        return instance;
+        InitializeFromBinary(reader);
     }
 
     private void InitializeFromBinary(BinaryReader reader)

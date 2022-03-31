@@ -1,20 +1,11 @@
-using System.IO;
-
 namespace subtitle_ocr_console.Subtitles.PGS;
 
 class EndSegment : Segment
 {
-    public EndSegment(SegmentHeader header)
+    public EndSegment(SegmentHeader header, BinaryReader reader)
         : base(header)
     {
-    }
-
-    public static EndSegment ReadFromBinary(SegmentHeader header, BinaryReader reader)
-    {
-        var instance = new EndSegment(header);
-        instance.InitializeFromBinary(reader);
-
-        return instance;
+        InitializeFromBinary(reader);
     }
 
     private void InitializeFromBinary(BinaryReader reader)

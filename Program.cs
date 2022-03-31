@@ -6,7 +6,7 @@ using (var stream = File.Open("/home/user/Downloads/subs.sup", FileMode.Open))
     {
         try
         {
-            var pgs = PGSReader.ReadFromBinary(reader);
+            var pgs = new PGSReader(reader);
         }
         catch (Exception ex)
         {

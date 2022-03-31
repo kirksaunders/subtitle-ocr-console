@@ -1,4 +1,3 @@
-using System.IO;
 using SixLabors.ImageSharp.PixelFormats;
 
 namespace subtitle_ocr_console.Subtitles.PGS;
@@ -11,16 +10,9 @@ class PaletteEntry
     public byte Cb { get; private set; }
     public byte Alpha { get; private set; }
 
-    public PaletteEntry()
+    public PaletteEntry(BinaryReader reader)
     {
-    }
-
-    public static PaletteEntry ReadFromBinary(BinaryReader reader)
-    {
-        var instance = new PaletteEntry();
-        instance.InitializeFromBinary(reader);
-
-        return instance;
+        InitializeFromBinary(reader);
     }
 
     private void InitializeFromBinary(BinaryReader reader)

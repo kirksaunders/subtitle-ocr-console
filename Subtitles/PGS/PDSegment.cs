@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace subtitle_ocr_console.Subtitles.PGS;
 
 class PDSegment : Segment
@@ -8,17 +6,10 @@ class PDSegment : Segment
     public byte VersionNumber { get; private set; }
     public List<PaletteEntry> Entries { get; } = new List<PaletteEntry>();
 
-    private PDSegment(SegmentHeader header)
+    public PDSegment(SegmentHeader header, BinaryReader reader)
         : base(header)
     {
-    }
-
-    public static PDSegment ReadFromBinary(SegmentHeader header, BinaryReader reader)
-    {
-        var instance = new PDSegment(header);
-        instance.InitializeFromBinary(reader);
-
-        return instance;
+        InitializeFromBinary(reader);
     }
 
     private void InitializeFromBinary(BinaryReader reader)
@@ -41,7 +32,7 @@ class PDSegment : Segment
         int bytesRead = 2;
         while ((Header.Size - bytesRead) >= 5)
         {
-            var paletteEntry = PaletteEntry.ReadFromBinary(reader);
+            var paletteEntry = new PaletteEntry(reader);
             bytesRead += 5;
 
             Entries.Add(paletteEntry);

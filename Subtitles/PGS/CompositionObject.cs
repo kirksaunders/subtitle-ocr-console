@@ -12,16 +12,9 @@ class CompositionObject
     public ushort CropWidth { get; private set; }
     public ushort CropHeight { get; private set; }
 
-    private CompositionObject()
+    public CompositionObject(BinaryReader reader)
     {
-    }
-
-    public static CompositionObject ReadFromBinary(BinaryReader reader)
-    {
-        var instance = new CompositionObject();
-        instance.InitializeFromBinary(reader);
-
-        return instance;
+        InitializeFromBinary(reader);
     }
 
     private void InitializeFromBinary(BinaryReader reader)

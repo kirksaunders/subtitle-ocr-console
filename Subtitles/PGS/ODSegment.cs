@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace subtitle_ocr_console.Subtitles.PGS;
 
 class ODSegment : Segment
@@ -19,17 +17,10 @@ class ODSegment : Segment
     public uint DataLength { get; private set; } // One byte wasted (spec has this as 3 bytes)
     public List<byte> Pixels { get; } = new();
 
-    private ODSegment(SegmentHeader header)
+    public ODSegment(SegmentHeader header, BinaryReader reader)
         : base(header)
     {
-    }
-
-    public static ODSegment ReadFromBinary(SegmentHeader header, BinaryReader reader)
-    {
-        var instance = new ODSegment(header);
-        instance.InitializeFromBinary(reader);
-
-        return instance;
+        InitializeFromBinary(reader);
     }
 
     private void InitializeFromBinary(BinaryReader reader)

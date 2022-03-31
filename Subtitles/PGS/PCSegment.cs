@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace subtitle_ocr_console.Subtitles.PGS;
 
 class PCSegment : Segment
@@ -21,17 +19,10 @@ class PCSegment : Segment
     public byte NumberObjects { get; private set; }
     public List<CompositionObject> CompositionObjects { get; } = new List<CompositionObject>();
 
-    private PCSegment(SegmentHeader header)
+    public PCSegment(SegmentHeader header, BinaryReader reader)
         : base(header)
     {
-    }
-
-    public static PCSegment ReadFromBinary(SegmentHeader header, BinaryReader reader)
-    {
-        var instance = new PCSegment(header);
-        instance.InitializeFromBinary(reader);
-
-        return instance;
+        InitializeFromBinary(reader);
     }
 
     private void InitializeFromBinary(BinaryReader reader)
@@ -95,7 +86,7 @@ class PCSegment : Segment
         int bytesRead = 11;
         for (int i = 0; i < NumberObjects; i++)
         {
-            var compositionObject = CompositionObject.ReadFromBinary(reader);
+            var compositionObject = new CompositionObject(reader);
             bytesRead += 16;
 
             CompositionObjects.Add(compositionObject);
