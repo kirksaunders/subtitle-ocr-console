@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace subtitle_ocr_console.Subtitles.PGS;
 
 class ODSegment : Segment
@@ -15,7 +17,8 @@ class ODSegment : Segment
     public ushort Width { get; private set; }
     public ushort Height { get; private set; }
     public uint DataLength { get; private set; } // One byte wasted (spec has this as 3 bytes)
-    public List<byte> Pixels { get; } = new();
+    private List<byte> _pixels = new();
+    public ReadOnlyCollection<byte> Pixels => _pixels.AsReadOnly();
 
     public ODSegment(SegmentHeader header, BinaryReader reader)
         : base(header)
@@ -90,7 +93,7 @@ class ODSegment : Segment
                     {
                         for (int i = 0; i < second; i++)
                         {
-                            Pixels.Add(0);
+                            _pixels.Add(0);
                         }
                     }
                     else if (mode == 0x40)
@@ -102,7 +105,7 @@ class ODSegment : Segment
 
                         for (int i = 0; i < numPixels; i++)
                         {
-                            Pixels.Add(0);
+                            _pixels.Add(0);
                         }
                     }
                     else if (mode == 0x80)
@@ -114,7 +117,7 @@ class ODSegment : Segment
 
                         for (int i = 0; i < numPixels; i++)
                         {
-                            Pixels.Add(third);
+                            _pixels.Add(third);
                         }
                     }
                     else if (mode == 0xC0)
@@ -127,14 +130,14 @@ class ODSegment : Segment
 
                         for (int i = 0; i < numPixels; i++)
                         {
-                            Pixels.Add(fourth);
+                            _pixels.Add(fourth);
                         }
                     }
                 }
             }
             else
             {
-                Pixels.Add(first);
+                _pixels.Add(first);
             }
         }
     }

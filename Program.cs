@@ -1,4 +1,5 @@
 ﻿using subtitle_ocr_console.Subtitles.PGS;
+using subtitle_ocr_console.Utils;
 
 using (var stream = File.Open("/home/user/Downloads/subs.sup", FileMode.Open))
 {

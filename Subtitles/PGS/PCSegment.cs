@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace subtitle_ocr_console.Subtitles.PGS;
 
 class PCSegment : Segment
@@ -17,7 +19,8 @@ class PCSegment : Segment
     public bool PaletteUpdate { get; private set; }
     public byte PaletteID { get; private set; }
     public byte NumberObjects { get; private set; }
-    public List<CompositionObject> CompositionObjects { get; } = new List<CompositionObject>();
+    private List<CompositionObject> _compositionObjects = new();
+    public ReadOnlyCollection<CompositionObject> CompositionObjects => _compositionObjects.AsReadOnly();
 
     public PCSegment(SegmentHeader header, BinaryReader reader)
         : base(header)
@@ -89,7 +92,7 @@ class PCSegment : Segment
             var compositionObject = new CompositionObject(reader);
             bytesRead += 16;
 
-            CompositionObjects.Add(compositionObject);
+            _compositionObjects.Add(compositionObject);
         }
 
         if (bytesRead < Header.Size)

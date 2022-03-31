@@ -1,5 +1,6 @@
-﻿using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Drawing.Processing;
+﻿using System.Collections.ObjectModel;
+
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
@@ -15,7 +16,8 @@ public class LineSegmenter
     private Image<A8> _image;
     private List<int> _histogram = new();
 
-    public List<Image<A8>> Lines = new();
+    private List<Image<A8>> _lines = new();
+    public ReadOnlyCollection<Image<A8>> Lines => _lines.AsReadOnly();
 
     public LineSegmenter(Image<A8> image)
     {
@@ -52,27 +54,12 @@ public class LineSegmenter
         segmenter.GenerateSegments();
         var segmentPoints = segmenter.SegmentPoints;
 
-        /*var img = _image.Clone();
-
-        for (int i = 0; i < segmentPoints.Count; i++)
-        {
-            var points = new PointF[2];
-            points[0] = new PointF(0.0f, segmentPoints[i]);
-            points[1] = new PointF((float)_image.Width - 1, segmentPoints[i]);
-            img.Mutate(ctx =>
-                ctx.DrawLines(new Color(new Rgba32(0, 0, 0, 255)), 2.0f, points)
-            );
-        }
-
-        img.Save("out/segments.png");*/
-
         for (int i = 0; i < segmentPoints.Count; i += 2)
         {
             var height = segmentPoints[i + 1] - segmentPoints[i] + 1;
-            Lines.Add(_image.Clone(ctx =>
+            _lines.Add(_image.Clone(ctx =>
                 ctx.Crop(new Rectangle(0, segmentPoints[i], _image.Width, height))
             ));
-            //Lines[^1].Save("out/line " + i.ToString() + ".png");
         }
     }
 

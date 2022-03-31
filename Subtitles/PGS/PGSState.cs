@@ -2,6 +2,7 @@
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using subtitle_ocr_console.Subtitles.Segmentation;
+using subtitle_ocr_console.Utils;
 
 namespace subtitle_ocr_console.Subtitles.PGS;
 
@@ -9,7 +10,7 @@ class PGSState
 {
     private class WritableImage
     {
-        public Image<Rgba32> Image;
+        public Image<Rgba32> Image { get; private set; }
 
         private int _writePositionX = 0;
         private int _writePositionY = 0;
@@ -65,6 +66,7 @@ class PGSState
     public void ResetPalettes()
     {
         _palettes.Clear();
+        _currentPalette = -1;
     }
 
     public void ResetWindows()
@@ -229,16 +231,14 @@ class PGSState
 
         for (int i = 0; i < windowImages.Length; i++)
         {
-            if (windowImages[i] != null)
+            var img = windowImages[i];
+            if (img != null)
             {
-                windowImages[i].Save(name + "_window_" + i.ToString() + ".png");
+                img.Save(name + "_window_" + i.ToString() + ".png");
 
-#pragma warning disable CS8604 // Possible null reference argument.
-                var pre = new PreprocessedImage(windowImages[i], 0.5);
-#pragma warning restore CS8604 // Possible null reference argument.
-                pre.Process();
+                var binarized = ImageBinarizer.Binarize(img, 0.5);
 
-                var segmenter = new LineSegmenter(pre.GetImage());
+                var segmenter = new LineSegmenter(binarized);
                 segmenter.Segment();
 
                 int count = 0;

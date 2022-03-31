@@ -1,4 +1,6 @@
-﻿namespace subtitle_ocr_console.Subtitles.Segmentation;
+﻿using System.Collections.ObjectModel;
+
+namespace subtitle_ocr_console.Subtitles.Segmentation;
 
 public class HistogramSegmenter
 {
@@ -8,7 +10,8 @@ public class HistogramSegmenter
     private int _minWidth;
     private List<int> _histogram;
 
-    public List<int> SegmentPoints = new();
+    private List<int> _segmentPoints = new();
+    public ReadOnlyCollection<int> SegmentPoints => _segmentPoints.AsReadOnly();
 
     // TODO: Rename minWidth to something more accurate. Maybe minSize?
     public HistogramSegmenter(List<int> histogram, int stride, double upperThreshold, double lowerThreshold, int minWidth)
@@ -36,24 +39,24 @@ public class HistogramSegmenter
 
             if (high && average < _lowerThreshold)
             {
-                int width = (pos + count / 2) - SegmentPoints[^1] + 1;
+                int width = (pos + count / 2) - _segmentPoints[^1] + 1;
                 if (width >= _minWidth)
                 {
                     high = false;
-                    SegmentPoints.Add(pos + count / 2);
+                    _segmentPoints.Add(pos + count / 2);
                 }
             }
             else if (!high && average > _upperThreshold)
             {
                 high = true;
-                SegmentPoints.Add(pos > 0 ? (pos - _stride) + _stride / 2 : 0);
+                _segmentPoints.Add(pos > 0 ? (pos - _stride) + _stride / 2 : 0);
             }
         }
 
         // Every opening segment point needs a closing one
-        if (SegmentPoints.Count % 2 != 0)
+        if (_segmentPoints.Count % 2 != 0)
         {
-            SegmentPoints.Add(_histogram.Count - 1);
+            _segmentPoints.Add(_histogram.Count - 1);
         }
     }
 }

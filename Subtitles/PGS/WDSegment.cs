@@ -1,9 +1,12 @@
+using System.Collections.ObjectModel;
+
 namespace subtitle_ocr_console.Subtitles.PGS;
 
 class WDSegment : Segment
 {
     public byte NumberWindows { get; private set; }
-    public List<WindowDefinition> Windows { get; } = new List<WindowDefinition>();
+    private List<WindowDefinition> _windows = new();
+    public ReadOnlyCollection<WindowDefinition> Windows => _windows.AsReadOnly();
 
     public WDSegment(SegmentHeader header, BinaryReader reader)
         : base(header)
@@ -33,7 +36,7 @@ class WDSegment : Segment
             var windowDefinition = new WindowDefinition(reader);
             bytesRead += 9;
 
-            Windows.Add(windowDefinition);
+            _windows.Add(windowDefinition);
         }
 
         if (bytesRead < Header.Size)

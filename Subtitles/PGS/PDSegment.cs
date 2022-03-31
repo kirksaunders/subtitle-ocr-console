@@ -1,10 +1,13 @@
+using System.Collections.ObjectModel;
+
 namespace subtitle_ocr_console.Subtitles.PGS;
 
 class PDSegment : Segment
 {
     public byte PaletteID { get; private set; }
     public byte VersionNumber { get; private set; }
-    public List<PaletteEntry> Entries { get; } = new List<PaletteEntry>();
+    public List<PaletteEntry> _entries = new();
+    public ReadOnlyCollection<PaletteEntry> Entries => _entries.AsReadOnly();
 
     public PDSegment(SegmentHeader header, BinaryReader reader)
         : base(header)
@@ -35,7 +38,7 @@ class PDSegment : Segment
             var paletteEntry = new PaletteEntry(reader);
             bytesRead += 5;
 
-            Entries.Add(paletteEntry);
+            _entries.Add(paletteEntry);
         }
 
         if (bytesRead < Header.Size)

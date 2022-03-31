@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace subtitle_ocr_console.Subtitles.PGS;
+namespace subtitle_ocr_console.Utils;
 
 // Source: https://gist.github.com/akamud/18ea0da3385da9fd932580c90be54e3f
 public class EndiannessAwareBinaryReader : BinaryReader
