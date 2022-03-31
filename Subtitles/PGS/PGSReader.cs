@@ -47,10 +47,9 @@ public class PGSReader
         }
 
         Console.WriteLine("Number of segments: " + _segments.Count);
-        Test();
     }
 
-    public void Test()
+    public void WriteImages(string outputDir)
     {
         var state = new PGSState();
         var count = 0;
@@ -59,7 +58,6 @@ public class PGSReader
         {
             var segment = _segments[i];
 
-            bool quit = false;
             switch (segment.Header.Type)
             {
                 case SegmentHeader.SegmentType.PDS:
@@ -79,21 +77,12 @@ public class PGSReader
                     break;
 
                 case SegmentHeader.SegmentType.END:
-                    state.WriteResult("out/" + count.ToString());
+                    state.WriteResult(outputDir + "/" + count.ToString());
                     count++;
-                    if (count >= 1000000)
-                    {
-                        quit = true;
-                    }
                     break;
 
                 default:
                     break;
-            }
-
-            if (quit)
-            {
-                break;
             }
         }
     }

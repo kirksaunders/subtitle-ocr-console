@@ -1,17 +1,70 @@
-﻿using subtitle_ocr_console.Subtitles.PGS;
+﻿using subtitle_ocr_console.OCR;
+using subtitle_ocr_console.Subtitles.PGS;
 using subtitle_ocr_console.Utils;
 
-using (var stream = File.Open("/home/user/Downloads/subs.sup", FileMode.Open))
+static class ProgramEntry
 {
-    using (var reader = new EndiannessAwareBinaryReader(stream, System.Text.Encoding.UTF8, false, EndiannessAwareBinaryReader.Endianness.Big))
+    static void Main(string[] args)
     {
-        try
+        if (args.Length < 1)
         {
-            var pgs = new PGSReader(reader);
+            throw new ArgumentException("Missing command line args: specify which entry point to use");
         }
-        catch (Exception ex)
+
+        if (args[0] == "test-pgs")
         {
-            Console.WriteLine("Exception: " + ex.ToString());
+            ReadPGS(args.Length > 1 ? args[1..^0] : new string[] { });
         }
+        else if (args[0] == "generate-data")
+        {
+            GenerateData(args.Length > 1 ? args[1..^0] : new string[] { });
+        }
+        else
+        {
+            throw new ArgumentException($"Unknown command line argument: {args[0]}");
+        }
+    }
+
+    static void ReadPGS(string[] args)
+    {
+        if (args.Length < 1)
+        {
+            throw new ArgumentException("Missing path of PGS file");
+        }
+        else if (args.Length < 2)
+        {
+            throw new ArgumentException("Missing directory to save output images to");
+        }
+
+        using (var stream = File.Open(args[0], FileMode.Open))
+        {
+            using (var reader = new EndiannessAwareBinaryReader(stream, System.Text.Encoding.UTF8, false, EndiannessAwareBinaryReader.Endianness.Big))
+            {
+                var pgs = new PGSReader(reader);
+                pgs.WriteImages(args[1]);
+            }
+        }
+    }
+
+    static void GenerateData(string[] args)
+    {
+        if (args.Length < 1)
+        {
+            throw new ArgumentException("Missing number of images to generate");
+        }
+        else if (args.Length < 2)
+        {
+            throw new ArgumentException("Missing max number of characters per image");
+        }
+        else if (args.Length < 3)
+        {
+            throw new ArgumentException("Missing directory to save data to");
+        }
+
+        int numImages = Int32.Parse(args[0]);
+        int numCharacters = Int32.Parse(args[1]);
+
+        var data = new LabeledImageData();
+        data.Generate(numImages, numCharacters, args[2]);
     }
 }

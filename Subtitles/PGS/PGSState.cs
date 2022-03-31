@@ -184,6 +184,8 @@ class PGSState
             ResetObjects();
             ResetPalettes();
             ResetWindows();
+
+            _currentPalette = segment.PaletteID;
         }
     }
 
