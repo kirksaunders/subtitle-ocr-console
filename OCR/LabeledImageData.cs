@@ -61,8 +61,9 @@ public class LabeledImageData
         }
     };
 
-    public List<Line> Lines { get; } = new();
+    public string ImageExtension { get; } = ".png";
     public List<char> Classes { get; } = new();
+    public List<Line> Lines { get; } = new();
 
     private int _alphabetSize;
 
@@ -170,7 +171,7 @@ public class LabeledImageData
                     );
 
                     var binarized = ImageBinarizer.Binarize(image, _binaryThreshold);
-                    binarized.Save(outputDir + "/" + count + ".png");
+                    binarized.Save(outputDir + "/" + count + ImageExtension);
 
                     Lines.Add(new Line(count, text));
 
