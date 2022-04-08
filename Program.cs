@@ -19,6 +19,10 @@ static class ProgramEntry
         {
             GenerateData(args.Length > 1 ? args[1..^0] : new string[] { });
         }
+        else if (args[0] == "generate-language-model")
+        {
+            GenerateLanguageModel(args.Length > 1 ? args[1..^0] : new string[] { });
+        }
         else
         {
             throw new ArgumentException($"Unknown command line argument: {args[0]}");
@@ -66,5 +70,28 @@ static class ProgramEntry
 
         var data = new LabeledImageData();
         data.Generate(numImages, numCharacters, args[2]);
+    }
+
+    static void GenerateLanguageModel(string[] args)
+    {
+        if (args.Length < 1)
+        {
+            throw new ArgumentException("Missing path of dictionary file");
+        }
+
+        Codec codec = new(
+            ('A', 'Z', CodecCharacterType.Letter),
+            ('a', 'z', CodecCharacterType.Letter),
+            ('0', '9', CodecCharacterType.Letter),
+            ('-', '-', CodecCharacterType.Punctuation),
+            (' ', ' ', CodecCharacterType.Whitespace),
+            ('.', '.', CodecCharacterType.Punctuation),
+            ('!', '!', CodecCharacterType.Punctuation),
+            (',', ',', CodecCharacterType.Punctuation),
+            ('\'', '\'', CodecCharacterType.Punctuation),
+            ('/', '/', CodecCharacterType.Punctuation),
+            ('&', '&', CodecCharacterType.Punctuation)
+        );
+        LanguageModel model = new(codec, args[0]);
     }
 }
