@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace subtitle_ocr_console.OCR;
 
 public class Codec
@@ -20,6 +22,26 @@ public class Codec
         _characters.Sort();
     }
 
+    public Codec(string path)
+    {
+        string jsonString = File.ReadAllText(path);
+        var chars = JsonSerializer.Deserialize<List<CodecCharacter>>(jsonString);
+
+        if (chars == null)
+        {
+            throw new ArgumentException("Unable to read codec from file");
+        }
+
+        _characters = chars;
+    }
+
+    /// <summary>
+    /// Method <c>GetCharacterIndex</c>
+    /// <returns>
+    /// Returns the index within the codec of the given character, or a negative
+    /// value if not found.
+    /// </returns>
+    /// </summary>
     public int GetCharacterIndex(char c)
     {
         int index = _characters.BinarySearch(new CodecCharacter() { Char = c });
@@ -28,16 +50,29 @@ public class Codec
             return index;
         }
 
-        throw new ArgumentException("Character not found in codec");
+        return -1;
     }
 
-    public CodecCharacter GetCharacter(int index)
+    /// <summary>
+    /// Method <c>GetCharacter</c>
+    /// <returns>
+    /// Returns the character at the given index within the codec, or
+    /// null if not found.
+    /// </returns>
+    /// </summary>
+    public CodecCharacter? GetCharacter(int index)
     {
         if (index < 0 || index >= _characters.Count)
         {
-            throw new ArgumentException("Index out of range");
+            return null;
         }
 
         return _characters[index];
+    }
+
+    public void Save(string path)
+    {
+        string jsonString = JsonSerializer.Serialize(_characters);
+        File.WriteAllText(path, jsonString);
     }
 }

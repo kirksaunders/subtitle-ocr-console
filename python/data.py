@@ -12,10 +12,15 @@ class TextDataset(torch.utils.data.Dataset):
         data = json.load(f)
         f.close()
 
+        f = open(data_dir / "codec.json", "r")
+        codec = json.load(f)
+        f.close()
+
         self.image_extension = data["ImageExtension"]
 
         self.classes = ['<BLNK>']
-        self.classes.extend(data["Classes"])
+        for char in codec:
+            self.classes.append(char["Char"])
         self.class_map = {}
         for char in self.classes:
             self.class_map[char] = len(self.class_map)

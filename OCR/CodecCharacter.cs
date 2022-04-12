@@ -10,8 +10,8 @@ public enum CodecCharacterType
 
 public struct CodecCharacter : IComparable<CodecCharacter>
 {
-    public char Char;
-    public CodecCharacterType Type;
+    public char Char { get; set; }
+    public CodecCharacterType Type { get; set; }
 
     public int CompareTo(CodecCharacter other)
     {

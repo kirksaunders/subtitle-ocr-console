@@ -20,17 +20,6 @@ public class LabeledImageData
     private static float _maxRandomScale = 1.25f;
     private static double _binaryThreshold = 0.5;
 
-    private static (char, char)[] _alphabet =
-    {
-        ('A', 'Z'),
-        ('a', 'z'),
-        ('0', '9'),
-		//('!', '!'),
-		//('\'', '\''),
-		//(',', '.'),
-		//('?', '?')
-	};
-
     private static int _fontSize = 48;
 
     private static string[] _fontFamilies =
@@ -65,74 +54,62 @@ public class LabeledImageData
     public List<char> Classes { get; } = new();
     public List<Line> Lines { get; } = new();
 
-    private int _alphabetSize;
+    private Codec _codec;
+    private LanguageModel _model;
 
-    public LabeledImageData()
+    public LabeledImageData(Codec codec, LanguageModel languageModel)
     {
-        // Calculate total number of characters in alphabet
-        _alphabetSize = 0;
-        foreach ((char first, char last) in _alphabet)
-        {
-            for (int i = first; i <= last; i++)
-            {
-                Classes.Add((char)i);
-            }
-
-            _alphabetSize += last - first + 1;
-        }
+        _codec = codec;
+        _model = languageModel;
     }
 
-    private char GetCharacterFromIndex(int index)
+    private IEnumerable<string> GenerateStrings(int maxNumStrings, int maxNumCharacters, int randomStringRate, string lineDataPath)
     {
-        int k = 0;
-        char character = (char)0;
+        var randomGenerator = new Random();
+        var lines = LineDataReader.ReadLines(_codec, lineDataPath);
 
-        foreach ((char first, char last) in _alphabet)
+        int numStrings = 0;
+        int numRealStrings = 0;
+        foreach (string line in lines)
         {
-            int size = last - first + 1;
-            if (index >= k && index < k + size)
+            if (numStrings >= maxNumStrings)
             {
-                character = (char)(first + index - k);
                 break;
             }
 
-            k += size;
-        }
-        if (k == _alphabetSize)
-        {
-            // Shouldn't be possible, but just in case
-            throw new Exception("Could not get character from random index");
-        }
+            yield return line;
+            numStrings++;
+            numRealStrings++;
 
-        return character;
-    }
-
-    private string[] GenerateStrings(int numStrings, int numCharacters)
-    {
-        var strings = new string[numStrings];
-        var randomGenerator = new Random();
-
-        for (var i = 0; i < numStrings; i++)
-        {
-            int numChars = randomGenerator.Next(1, numCharacters + 1);
-            var builder = new StringBuilder(numChars);
-            for (var j = 0; j < numChars; j++)
+            if (numRealStrings % randomStringRate == 0 && numStrings < maxNumStrings)
             {
-                var charIndex = randomGenerator.Next(0, _alphabetSize);
-                char character = GetCharacterFromIndex(charIndex);
+                int numChars = randomGenerator.Next(1, maxNumCharacters + 1);
+                var builder = new StringBuilder(numChars);
+                for (var j = 0; j < numChars; j++)
+                {
+                    builder.Append(_model.SampleCharacterUniform().Char);
+                }
 
-                builder.Append(character);
+                // ImageSharp throws an exception if '/' is the first/last character of a string?
+                // At least, this is true with the Montserrat font.
+                if (builder[^1] == '/')
+                {
+                    builder.Append('a');
+                }
+                if (builder[0] == '/')
+                {
+                    builder.Insert(0, 'a');
+                }
+
+                yield return builder.ToString();
+                numStrings++;
             }
-
-            strings[i] = builder.ToString();
         }
-
-        return strings;
     }
 
-    public void Generate(int numStrings, int numCharacters, string outputDir)
+    public void Generate(int maxNumStrings, int maxNumCharacters, int randomStringRate, string lineDataPath, string outputDir)
     {
-        var strings = GenerateStrings(numStrings, numCharacters);
+        var strings = GenerateStrings(maxNumStrings, maxNumCharacters, randomStringRate, lineDataPath);
 
         var randomGenerator = new Random();
         int count = 0;
@@ -170,8 +147,10 @@ public class LabeledImageData
                         }, Color.White, glyphs)
                     );
 
-                    var binarized = ImageBinarizer.Binarize(image, _binaryThreshold);
-                    binarized.Save(outputDir + "/" + count + ImageExtension);
+                    //var binarized = ImageBinarizer.Binarize(image, _binaryThreshold);
+                    //binarized.Save(outputDir + "/" + count + ImageExtension);
+
+                    image.CloneAs<A8>().Save(outputDir + "/" + count + ImageExtension);
 
                     Lines.Add(new Line(count, text));
 

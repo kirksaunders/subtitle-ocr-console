@@ -222,3 +222,11 @@ class SizeTrackingBatchNorm2d(SizeTracking):
 
     def _calculate_sizes(self, sizes):
         return sizes
+
+class SizeTrackingDropout(SizeTracking):
+    def __init__(self, *args, **kwargs):
+        super(SizeTrackingDropout, self).__init__()
+        self.layer = nn.Dropout(*args, **kwargs)
+
+    def _calculate_sizes(self, sizes):
+        return sizes

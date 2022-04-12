@@ -54,7 +54,7 @@ static class ProgramEntry
     {
         if (args.Length < 1)
         {
-            throw new ArgumentException("Missing number of images to generate");
+            throw new ArgumentException("Missing max number of strings to generate");
         }
         else if (args.Length < 2)
         {
@@ -62,14 +62,43 @@ static class ProgramEntry
         }
         else if (args.Length < 3)
         {
+            throw new ArgumentException("Missing random string generation rate");
+        }
+        else if (args.Length < 4)
+        {
+            throw new ArgumentException("Missing line data file path");
+        }
+        else if (args.Length < 5)
+        {
             throw new ArgumentException("Missing directory to save data to");
         }
 
-        int numImages = Int32.Parse(args[0]);
+        int numStrings = Int32.Parse(args[0]);
         int numCharacters = Int32.Parse(args[1]);
+        int randomStringRate = Int32.Parse(args[2]);
 
-        var data = new LabeledImageData();
-        data.Generate(numImages, numCharacters, args[2]);
+        Codec codec = new(
+            ('A', 'Z', CodecCharacterType.Letter),
+            ('a', 'z', CodecCharacterType.Letter),
+            ('0', '9', CodecCharacterType.Digit),
+            (' ', ' ', CodecCharacterType.Whitespace),
+            (',', ',', CodecCharacterType.Punctuation),
+            ('.', '.', CodecCharacterType.Punctuation),
+            ('!', '!', CodecCharacterType.Punctuation),
+            ('?', '?', CodecCharacterType.Punctuation),
+            ('-', '-', CodecCharacterType.Punctuation),
+            ('"', '"', CodecCharacterType.Punctuation),
+            ('\'', '\'', CodecCharacterType.Punctuation),
+            ('(', ')', CodecCharacterType.Punctuation),
+            ('/', '/', CodecCharacterType.Punctuation),
+            (':', ';', CodecCharacterType.Punctuation)
+        );
+        LanguageModel model = new(codec, args[3]);
+
+        codec.Save(args[4] + "/codec.json");
+
+        var data = new LabeledImageData(codec, model);
+        data.Generate(numStrings, numCharacters, randomStringRate, args[3], args[4]);
     }
 
     static void GenerateLanguageModel(string[] args)
@@ -82,15 +111,18 @@ static class ProgramEntry
         Codec codec = new(
             ('A', 'Z', CodecCharacterType.Letter),
             ('a', 'z', CodecCharacterType.Letter),
-            ('0', '9', CodecCharacterType.Letter),
-            ('-', '-', CodecCharacterType.Punctuation),
+            ('0', '9', CodecCharacterType.Digit),
             (' ', ' ', CodecCharacterType.Whitespace),
+            (',', ',', CodecCharacterType.Punctuation),
             ('.', '.', CodecCharacterType.Punctuation),
             ('!', '!', CodecCharacterType.Punctuation),
-            (',', ',', CodecCharacterType.Punctuation),
+            ('?', '?', CodecCharacterType.Punctuation),
+            ('-', '-', CodecCharacterType.Punctuation),
+            ('"', '"', CodecCharacterType.Punctuation),
             ('\'', '\'', CodecCharacterType.Punctuation),
+            ('(', ')', CodecCharacterType.Punctuation),
             ('/', '/', CodecCharacterType.Punctuation),
-            ('&', '&', CodecCharacterType.Punctuation)
+            (':', ';', CodecCharacterType.Punctuation)
         );
         LanguageModel model = new(codec, args[0]);
     }
