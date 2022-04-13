@@ -4,6 +4,29 @@ namespace subtitle_ocr_console.OCR;
 
 public static class LineDataReader
 {
+    private static IEnumerable<char> ReadChars(Codec codec, string line)
+    {
+        foreach (char c in line.ToCharArray())
+        {
+            if (c == '\u201C' || c == '\u201D')
+            {
+                yield return '"';
+            }
+            else if (c == '\u2019')
+            {
+                yield return '\'';
+            }
+            else if (c == '\u2014')
+            {
+                yield return '-';
+            }
+            else
+            {
+                yield return c;
+            }
+        }
+    }
+
     public static IEnumerable<string> ReadLines(Codec codec, string path)
     {
         var lines = File.ReadLines(path);
@@ -11,11 +34,14 @@ public static class LineDataReader
         {
             var str = new StringBuilder(line.Length);
             int spaceCount = 0;
-            foreach (char c in line.ToCharArray())
+            foreach (char c in ReadChars(codec, line))
             {
-                if (c == ' ')
+                if (Char.IsWhiteSpace(c))
                 {
-                    spaceCount++;
+                    if (str.Length > 0)
+                    {
+                        spaceCount++;
+                    }
                 }
                 else
                 {
@@ -23,7 +49,8 @@ public static class LineDataReader
                     {
                         if (spaceCount > 0)
                         {
-                            str.Append(' ', spaceCount);
+                            // Currently condensing multiple spaces into one
+                            str.Append(' ');
                             spaceCount = 0;
                         }
                         str.Append(c);

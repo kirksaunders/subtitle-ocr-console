@@ -66,9 +66,13 @@ static class ProgramEntry
         }
         else if (args.Length < 4)
         {
-            throw new ArgumentException("Missing line data file path");
+            throw new ArgumentException("Missing validation boolean");
         }
         else if (args.Length < 5)
+        {
+            throw new ArgumentException("Missing line data file path");
+        }
+        else if (args.Length < 6)
         {
             throw new ArgumentException("Missing directory to save data to");
         }
@@ -76,6 +80,7 @@ static class ProgramEntry
         int numStrings = Int32.Parse(args[0]);
         int numCharacters = Int32.Parse(args[1]);
         int randomStringRate = Int32.Parse(args[2]);
+        bool validation = Boolean.Parse(args[3]);
 
         Codec codec = new(
             ('A', 'Z', CodecCharacterType.Letter),
@@ -90,15 +95,14 @@ static class ProgramEntry
             ('"', '"', CodecCharacterType.Punctuation),
             ('\'', '\'', CodecCharacterType.Punctuation),
             ('(', ')', CodecCharacterType.Punctuation),
-            ('/', '/', CodecCharacterType.Punctuation),
             (':', ';', CodecCharacterType.Punctuation)
         );
-        LanguageModel model = new(codec, args[3]);
+        LanguageModel model = new(codec, args[4]);
 
-        codec.Save(args[4] + "/codec.json");
+        codec.Save(args[5] + "/codec.json");
 
         var data = new LabeledImageData(codec, model);
-        data.Generate(numStrings, numCharacters, randomStringRate, args[3], args[4]);
+        data.Generate(numStrings, numCharacters, randomStringRate, validation, args[4], args[5]);
     }
 
     static void GenerateLanguageModel(string[] args)
@@ -121,7 +125,6 @@ static class ProgramEntry
             ('"', '"', CodecCharacterType.Punctuation),
             ('\'', '\'', CodecCharacterType.Punctuation),
             ('(', ')', CodecCharacterType.Punctuation),
-            ('/', '/', CodecCharacterType.Punctuation),
             (':', ';', CodecCharacterType.Punctuation)
         );
         LanguageModel model = new(codec, args[0]);
