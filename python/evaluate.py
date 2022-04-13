@@ -1,0 +1,85 @@
+import argparse
+import json
+from pathlib import Path
+import torch
+from torch import nn
+
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+import tensorflow as tf
+
+from data import *
+from decoders import *
+from metrics import *
+from model import *
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--model_dir", "-m", type=Path, required=True,
+                    help="The directory containing the trained model")
+parser.add_argument("--epoch", "-e", type=int, required=True,
+                    help="The epoch of the saved weights.")
+
+# Parse command line args
+args = parser.parse_args()
+
+# Save dataset class information to the output directory
+f = open(args.model_dir / "classes.json", "r")
+classes = json.load(f)
+f.close()
+
+# Load model and put it in eval mode
+model = load_model(len(classes), args.model_dir / ("epoch_" + str(args.epoch) + ".pt"))
+model.eval()
+decoder = CTCGreedyDecoder()
+
+# Send model to appropriate device (GPU if available)
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+model.to(device)
+print("Running on device: " + str(device))
+
+img = Image.open("out/test17.png", "r")
+assert img.height == 32
+img_data = np.asarray(img)
+img_data = img_data[:, :, -1] # use only alpha channel
+img_data = img_data.astype(np.float32) / 255.0
+img_tensor = torch.from_numpy(img_data)
+img_tensor = img_tensor.transpose(0, 1) # Make width come first
+
+images = [img_tensor]
+image_sizes = torch.tensor([x.size() for x in images], dtype=torch.long)
+padded_images = nn.utils.rnn.pad_sequence(images, batch_first=True)
+padded_images = torch.unsqueeze(padded_images, 1)
+image_sizes = torch.cat((torch.ones(len(images), 1, dtype=torch.long), image_sizes), dim=1)
+
+padded_images = padded_images.to(device)
+image_sizes = image_sizes.to(device)
+
+probs, prob_lens = model(padded_images, image_sizes)
+prob_lens = prob_lens[:, 0]
+
+probs = probs.transpose(0, 1) # Make batch size come second
+probs = probs.detach().cpu().numpy()
+prob_lens = prob_lens.detach().cpu().numpy()
+
+probs[:, :, :] = np.concatenate((probs[:, :, 1:], probs[:, :, 0:1]), axis=-1)
+
+decoded, _ = tf.nn.ctc_beam_search_decoder(probs, prob_lens, 100, 1)
+#decoded, _ = tf.nn.ctc_greedy_decoder(probs, prob_lens)
+
+for i in range(len(decoded)):
+    out = ""
+    dense = tf.sparse.to_dense(decoded[i])
+    for j in range(dense.shape[1]):
+        idx = dense[0, j] + 1
+        if idx >= len(classes):
+            idx = 0
+        out += classes[idx]
+    print(out)
+
+""" decoded, decoded_lens = decoder(probs, prob_lens)
+
+for i in range(decoded.size(0)):
+    out = ""
+    for j in range(decoded_lens[i]):
+        out += classes[decoded[i, j]]
+    print(out) """

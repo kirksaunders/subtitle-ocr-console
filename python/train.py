@@ -135,6 +135,7 @@ with profile(
         valid_loss_avg = 0.0
         valid_accuracy_avg = 0.0
         with torch.no_grad():
+            model.train(False) # Put model in inference mode
             for imgs, lbls, img_lens, lbl_lens in valid_dataloader:
                 # Send all tensors to correct device
                 imgs = imgs.to(device)
@@ -162,6 +163,7 @@ with profile(
                 # Step profiler if after first epoch (use first epoch to load all data, warmup, etc.)
                 if epoch > 0:
                     prof.step()
+            model.train(True) # Put model back in training mode
 
         # Calculate average loss and accuracy
         valid_loss_avg /= len(valid_dataloader.sampler)
