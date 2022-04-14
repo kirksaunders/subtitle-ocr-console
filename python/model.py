@@ -85,6 +85,6 @@ def load_model(num_classes, weights_path=None):
     )
 
     if not weights_path is None:
-        model.load_state_dict(torch.load(weights_path))
+        model.load_state_dict(torch.load(weights_path, map_location=torch.device('cpu')))
 
     return model

@@ -6,6 +6,7 @@ from torch import nn
 
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
 import tensorflow as tf
 
 from data import *
@@ -30,7 +31,8 @@ f.close()
 # Load model and put it in eval mode
 model = load_model(len(classes), args.model_dir / ("epoch_" + str(args.epoch) + ".pt"))
 model.eval()
-decoder = CTCGreedyDecoder()
+greedy_decoder = CTCGreedyDecoder()
+beam_decoder = CTCBeamDecoder()
 
 # Send model to appropriate device (GPU if available)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -57,10 +59,37 @@ image_sizes = image_sizes.to(device)
 probs, prob_lens = model(padded_images, image_sizes)
 prob_lens = prob_lens[:, 0]
 
-probs = probs.transpose(0, 1) # Make batch size come second
+""" probs = torch.tensor([[[0.8, 0.2, 0.0], [0.6, 0.4, 0.0]]])
+probs = torch.log(probs)
+prob_lens = torch.tensor([2])
+classes = ['<BLNK>', 'a', 'b'] """
+
+""" decoded, decoded_lens = greedy_decoder(probs, prob_lens)
+
+for i in range(decoded.size(0)):
+    out = ""
+    for j in range(decoded_lens[i]):
+        out += classes[decoded[i, j]]
+    print(out) """
+
+""" from line_profiler import LineProfiler
+
+lp = LineProfiler()
+w = lp(DECODE)
+decoded, decoded_lens = w(probs, prob_lens, 100)
+lp.print_stats() """
+
+decoded, decoded_lens = beam_decoder(probs, prob_lens, 100)
+
+for i in range(decoded.size(0)):
+    out = ""
+    for j in range(decoded_lens[i]):
+        out += classes[decoded[i, j]]
+    print(out)
+
+""" probs = probs.transpose(0, 1) # Make batch size come second
 probs = probs.detach().cpu().numpy()
 prob_lens = prob_lens.detach().cpu().numpy()
-
 probs[:, :, :] = np.concatenate((probs[:, :, 1:], probs[:, :, 0:1]), axis=-1)
 
 decoded, _ = tf.nn.ctc_beam_search_decoder(probs, prob_lens, 100, 1)
@@ -74,12 +103,4 @@ for i in range(len(decoded)):
         if idx >= len(classes):
             idx = 0
         out += classes[idx]
-    print(out)
-
-""" decoded, decoded_lens = decoder(probs, prob_lens)
-
-for i in range(decoded.size(0)):
-    out = ""
-    for j in range(decoded_lens[i]):
-        out += classes[decoded[i, j]]
     print(out) """
