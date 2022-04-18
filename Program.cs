@@ -1,4 +1,8 @@
-﻿using subtitle_ocr_console.OCR;
+﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+
+using subtitle_ocr_console.OCR;
 using subtitle_ocr_console.Subtitles.PGS;
 using subtitle_ocr_console.Utils;
 
@@ -22,6 +26,10 @@ static class ProgramEntry
         else if (args[0] == "generate-language-model")
         {
             GenerateLanguageModel(args.Length > 1 ? args[1..^0] : new string[] { });
+        }
+        else if (args[0] == "infer")
+        {
+            Infer(args.Length > 1 ? args[1..^0] : new string[] { });
         }
         else
         {
@@ -101,7 +109,7 @@ static class ProgramEntry
 
         codec.Save(args[5] + "/codec.json");
 
-        var data = new LabeledImageData(codec, model);
+        var data = new LabeledImageData(codec);
         data.Generate(numStrings, numCharacters, randomStringRate, validation, args[4], args[5]);
     }
 
@@ -128,5 +136,39 @@ static class ProgramEntry
             (':', ';', CodecCharacterType.Punctuation)
         );
         LanguageModel model = new(codec, args[0]);
+    }
+
+    static void Infer(string[] args)
+    {
+        if (args.Length < 1)
+        {
+            throw new ArgumentException("Missing path of saved ONNX model");
+        }
+        else if (args.Length < 2)
+        {
+            throw new ArgumentException("Missing path of one or more image files");
+        }
+
+        var model = new InferenceModel(args[0]);
+
+        List<Image<A8>> images = new();
+        for (var i = 1; i < args.Length; i++)
+        {
+            using (var image = Image.Load(args[i]))
+            {
+                var resized = image.CloneAs<A8>();
+                resized.Mutate(ctx =>
+                    ctx.Resize(0, 32)
+                );
+
+                images.Add(resized);
+            }
+        }
+
+        var strings = model.Infer(images);
+        foreach (var str in strings)
+        {
+            Console.WriteLine(str);
+        }
     }
 }

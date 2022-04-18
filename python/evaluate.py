@@ -1,15 +1,15 @@
 import argparse
 import json
 from pathlib import Path
+from PIL import Image
 import torch
 from torch import nn
 
 import os
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
-import tensorflow as tf
+#os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+#os.environ["CUDA_VISIBLE_DEVICES"] = '-1'
+#import tensorflow as tf
 
-from data import *
 from decoders import *
 from metrics import *
 from model import *
@@ -23,13 +23,13 @@ parser.add_argument("--epoch", "-e", type=int, required=True,
 # Parse command line args
 args = parser.parse_args()
 
-# Save dataset class information to the output directory
-f = open(args.model_dir / "classes.json", "r")
-classes = json.load(f)
+# Get model codec information
+f = open(args.model_dir / "codec.json", "r")
+codec = json.load(f)
 f.close()
 
 # Load model and put it in eval mode
-model = load_model(len(classes), args.model_dir / ("epoch_" + str(args.epoch) + ".pt"))
+model = load_model(len(codec) + 1, args.model_dir / ("epoch_" + str(args.epoch) + ".pt"))
 model.eval()
 greedy_decoder = CTCGreedyDecoder()
 beam_decoder = CTCBeamDecoder()
@@ -39,7 +39,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 print("Running on device: " + str(device))
 
-img = Image.open("out/test17.png", "r")
+img = Image.open("out/test.png", "r")
 assert img.height == 32
 img_data = np.asarray(img)
 img_data = img_data[:, :, -1] # use only alpha channel
@@ -84,7 +84,7 @@ decoded, decoded_lens = beam_decoder(probs, prob_lens, 100)
 for i in range(decoded.size(0)):
     out = ""
     for j in range(decoded_lens[i]):
-        out += classes[decoded[i, j]]
+        out += codec[decoded[i, j] - 1]["Char"]
     print(out)
 
 """ probs = probs.transpose(0, 1) # Make batch size come second

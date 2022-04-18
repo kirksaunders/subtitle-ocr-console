@@ -8,8 +8,6 @@ using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
-using subtitle_ocr_console.Utils;
-
 namespace subtitle_ocr_console.OCR;
 
 public class LabeledImageData
@@ -18,8 +16,6 @@ public class LabeledImageData
     private static int _minWidth = 4;
     private static float _minRandomScale = 0.85f;
     private static float _maxRandomScale = 1.35f;
-    private static double _binaryThreshold = 0.5;
-
     private static int _fontSize = 48;
 
     private static string[] _trainingFontFamilies =
@@ -66,29 +62,44 @@ public class LabeledImageData
     };
 
     public string ImageExtension { get; } = ".png";
-    public List<char> Classes { get; } = new();
     public List<Line> Lines { get; } = new();
 
     private Codec _codec;
-    private LanguageModel _model;
 
-    public LabeledImageData(Codec codec, LanguageModel languageModel)
+    public LabeledImageData(Codec codec)
     {
         _codec = codec;
-        _model = languageModel;
     }
 
-    private string GenerateRandomString(StringBuilder builder, int numChars)
+    public LabeledImageData(Codec codec, string path)
+    {
+        _codec = codec;
+
+        string jsonString = File.ReadAllText(path + "/labels.json");
+        List<Line>? lines = JsonSerializer.Deserialize<List<Line>>(jsonString);
+
+        if (lines == null)
+        {
+            throw new ArgumentException("Unable to read image data labels from file");
+        }
+
+        Lines = lines;
+    }
+
+    private string GenerateRandomString(StringBuilder builder, int numChars, Random randomGenerator)
     {
         builder.Clear();
         for (var j = 0; j < numChars; j++)
         {
+            CodecCharacter character;
+
             // Prevent first or last char from being whitespace
-            CodecCharacter character = _model.SampleCharacterUniform();
-            while ((j == 0 || j == numChars - 1) && character.Type == CodecCharacterType.Whitespace)
+            do
             {
-                character = _model.SampleCharacterUniform();
-            }
+                int charIndex = randomGenerator.Next(_codec.Count);
+                character = _codec.GetCharacter(charIndex) ?? throw new ArgumentNullException("This code should be unreachable");
+            } while ((j == 0 || j == numChars - 1) && character.Type == CodecCharacterType.Whitespace);
+
             builder.Append(character.Char);
         }
 
@@ -133,7 +144,7 @@ public class LabeledImageData
                     if (numRealStrings % randomStringRate == 0 && numStrings < maxNumStrings)
                     {
                         numChars = randomGenerator.Next(1, maxNumCharacters + 1);
-                        yield return GenerateRandomString(builder, numChars);
+                        yield return GenerateRandomString(builder, numChars, randomGenerator);
                         numStrings++;
                     }
 
@@ -151,7 +162,7 @@ public class LabeledImageData
                 if (numRealStrings % randomStringRate == 0 && numStrings < maxNumStrings)
                 {
                     numChars = randomGenerator.Next(1, maxNumCharacters + 1);
-                    yield return GenerateRandomString(builder, numChars);
+                    yield return GenerateRandomString(builder, numChars, randomGenerator);
                     numStrings++;
                 }
 
@@ -222,11 +233,7 @@ public class LabeledImageData
                 }, Color.White, glyphs)
             );
 
-            //var binarized = ImageBinarizer.Binarize(image, _binaryThreshold);
-            //binarized.Save(outputDir + "/" + count + ImageExtension);
-
             image.Save(outputDir + "/" + count + ImageExtension);
-
             Lines.Add(new Line(count, text));
 
             count++;

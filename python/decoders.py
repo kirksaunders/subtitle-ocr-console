@@ -88,8 +88,6 @@ class CTCBeamDecoder(nn.Module):
         super(CTCBeamDecoder, self).__init__()
 
     def forward(self, probabilities, lengths, beam_width=1, blank_index=0):
-        # Reduce to max class at each prediction
-
         device = probabilities.device
 
         probabilities = probabilities.detach().cpu().numpy()

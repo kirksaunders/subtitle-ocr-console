@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime
 import json
 from pathlib import Path
+import shutil
 import torch
 from torch import nn
 from torch.utils import tensorboard
@@ -48,10 +49,8 @@ valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_sampler=samp
 args.save_dir.mkdir(parents=True, exist_ok=False)
 writer = tensorboard.SummaryWriter(log_dir=args.save_dir)
 
-# Save dataset class information to the output directory
-f = open(args.save_dir / "classes.json", "w")
-json.dump(train_dataset.classes, f)
-f.close()
+# Copy dataset codec information to the output directory
+shutil.copy(args.train_data_dir / "codec.json", args.save_dir / "codec.json")
 
 # Load model and setup optimzer, loss function, decoder, accuracy metric
 model = load_model(len(train_dataset.classes), args.weights)
