@@ -1,20 +1,20 @@
 namespace subtitle_ocr_console.OCR.Decoders;
 
-public class FixedSizeHeap<T> where T : IComparable<T>
+public class BeamList
 {
-    private T[] _data;
+    private BeamEntry[] _data;
     private int _capacity;
     private int _size = 0;
 
     public int Count { get { return _size; } }
 
-    public FixedSizeHeap(int capacity)
+    public BeamList(int capacity)
     {
-        _data = new T[capacity];
+        _data = new BeamEntry[capacity];
         _capacity = capacity;
     }
 
-    public bool Add(T item)
+    public BeamEntry? Add(BeamEntry item)
     {
         if (_size < _capacity)
         {
@@ -23,19 +23,17 @@ public class FixedSizeHeap<T> where T : IComparable<T>
             _size++;
 
             SiftUp(idx);
+
+            return null;
         }
         else
         {
-            if (item.CompareTo(_data[0]) < 0)
-            {
-                return false;
-            }
-
+            BeamEntry removed = _data[0];
             _data[0] = item;
             SiftDown(0);
-        }
 
-        return true;
+            return removed;
+        }
     }
 
     public void Clear()
@@ -43,7 +41,7 @@ public class FixedSizeHeap<T> where T : IComparable<T>
         _size = 0;
     }
 
-    public T GetMinimum()
+    public BeamEntry GetMinimum()
     {
         if (_size == 0)
         {
@@ -61,7 +59,7 @@ public class FixedSizeHeap<T> where T : IComparable<T>
 
             if (_data[idx].CompareTo(_data[parent]) < 0)
             {
-                T tmp = _data[parent];
+                BeamEntry tmp = _data[parent];
                 _data[parent] = _data[idx];
                 _data[idx] = tmp;
             }
@@ -79,8 +77,9 @@ public class FixedSizeHeap<T> where T : IComparable<T>
         while (idx < _size)
         {
             int left = 2 * idx + 1;
-            int right = 2 * idx + 2;
+            int right = left + 2;
 
+            // Get child with smaller value
             int child;
             if (left < _size && right < _size)
             {
@@ -104,7 +103,7 @@ public class FixedSizeHeap<T> where T : IComparable<T>
 
             if (_data[idx].CompareTo(_data[child]) > 0)
             {
-                T tmp = _data[child];
+                BeamEntry tmp = _data[child];
                 _data[child] = _data[idx];
                 _data[idx] = tmp;
             }
@@ -117,13 +116,13 @@ public class FixedSizeHeap<T> where T : IComparable<T>
         }
     }
 
-    public List<T> ToList()
+    public List<BeamEntry> ToList()
     {
         if (_size == 0)
         {
-            return new List<T>();
+            return new List<BeamEntry>();
         }
 
-        return new List<T>(_data[0.._size]);
+        return new List<BeamEntry>(_data[0.._size]);
     }
 }

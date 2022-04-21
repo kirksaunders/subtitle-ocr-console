@@ -22,9 +22,9 @@ public class Codec
         _characters.Sort();
     }
 
-    public Codec(string path)
+    public Codec(FileInfo savePath)
     {
-        string jsonString = File.ReadAllText(path);
+        string jsonString = File.ReadAllText(savePath.FullName);
         var chars = JsonSerializer.Deserialize<List<CodecCharacter>>(jsonString);
 
         if (chars == null)
@@ -70,9 +70,9 @@ public class Codec
         return _characters[index];
     }
 
-    public void Save(string path)
+    public void Save(FileInfo path)
     {
         string jsonString = JsonSerializer.Serialize(_characters);
-        File.WriteAllText(path, jsonString);
+        File.WriteAllText(path.FullName, jsonString);
     }
 }

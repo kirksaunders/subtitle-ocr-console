@@ -49,7 +49,7 @@ public class PGSReader
         Console.WriteLine("Number of segments: " + _segments.Count);
     }
 
-    public void WriteImages(string outputDir)
+    public void WriteImages(DirectoryInfo outputDir)
     {
         var state = new PGSState();
         var count = 0;

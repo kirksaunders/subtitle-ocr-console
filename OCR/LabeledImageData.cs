@@ -71,11 +71,11 @@ public class LabeledImageData
         _codec = codec;
     }
 
-    public LabeledImageData(Codec codec, string path)
+    public LabeledImageData(Codec codec, FileInfo savePath)
     {
         _codec = codec;
 
-        string jsonString = File.ReadAllText(path + "/labels.json");
+        string jsonString = File.ReadAllText(savePath.FullName + "/labels.json");
         List<Line>? lines = JsonSerializer.Deserialize<List<Line>>(jsonString);
 
         if (lines == null)
@@ -106,42 +106,63 @@ public class LabeledImageData
         return builder.ToString();
     }
 
-    private IEnumerable<string> GenerateStrings(int maxNumStrings, int maxNumCharacters, int randomStringRate, string lineDataPath)
+    private IEnumerable<string> GenerateStrings(int maxNumStrings, int maxNumCharacters,
+                                                int randomStringRate, IEnumerable<FileInfo> lineDataPaths)
     {
         var randomGenerator = new Random();
-        var lines = LineDataReader.ReadLines(_codec, lineDataPath);
 
         int numStrings = 0;
         int numRealStrings = 0;
         StringBuilder builder = new(maxNumCharacters);
         int numChars = randomGenerator.Next(1, maxNumCharacters + 1);
-        foreach (string line in lines)
+        foreach (var lineDataPath in lineDataPaths)
         {
-            if (numStrings >= maxNumStrings)
-            {
-                break;
-            }
-
-            foreach (string word in line.Split(' '))
+            var lines = LineDataReader.ReadLines(_codec, lineDataPath);
+            foreach (string line in lines)
             {
                 if (numStrings >= maxNumStrings)
                 {
                     break;
                 }
 
-                if (builder.Length > 0)
+                foreach (string word in line.Split(' '))
                 {
-                    builder.Append(' ');
-                }
-                builder.Append(word);
+                    if (numStrings >= maxNumStrings)
+                    {
+                        break;
+                    }
 
-                if (builder.Length >= numChars)
+                    if (builder.Length > 0)
+                    {
+                        builder.Append(' ');
+                    }
+                    builder.Append(word);
+
+                    if (builder.Length >= numChars)
+                    {
+                        yield return builder.ToString();
+                        numStrings++;
+                        numRealStrings++;
+
+                        if (randomStringRate > 0 && numRealStrings % randomStringRate == 0 && numStrings < maxNumStrings)
+                        {
+                            numChars = randomGenerator.Next(1, maxNumCharacters + 1);
+                            yield return GenerateRandomString(builder, numChars, randomGenerator);
+                            numStrings++;
+                        }
+
+                        builder.Clear();
+                        numChars = randomGenerator.Next(1, maxNumCharacters + 1);
+                    }
+                }
+
+                if (builder.Length > 0 && numStrings < maxNumStrings)
                 {
                     yield return builder.ToString();
                     numStrings++;
                     numRealStrings++;
 
-                    if (numRealStrings % randomStringRate == 0 && numStrings < maxNumStrings)
+                    if (randomStringRate > 0 && numRealStrings % randomStringRate == 0 && numStrings < maxNumStrings)
                     {
                         numChars = randomGenerator.Next(1, maxNumCharacters + 1);
                         yield return GenerateRandomString(builder, numChars, randomGenerator);
@@ -151,23 +172,6 @@ public class LabeledImageData
                     builder.Clear();
                     numChars = randomGenerator.Next(1, maxNumCharacters + 1);
                 }
-            }
-
-            if (builder.Length > 0 && numStrings < maxNumStrings)
-            {
-                yield return builder.ToString();
-                numStrings++;
-                numRealStrings++;
-
-                if (numRealStrings % randomStringRate == 0 && numStrings < maxNumStrings)
-                {
-                    numChars = randomGenerator.Next(1, maxNumCharacters + 1);
-                    yield return GenerateRandomString(builder, numChars, randomGenerator);
-                    numStrings++;
-                }
-
-                builder.Clear();
-                numChars = randomGenerator.Next(1, maxNumCharacters + 1);
             }
         }
     }
@@ -194,9 +198,10 @@ public class LabeledImageData
         return fonts;
     }
 
-    public void Generate(int maxNumStrings, int maxNumCharacters, int randomStringRate, bool validation, string lineDataPath, string outputDir)
+    public void Generate(int maxNumStrings, int maxNumCharacters, int randomStringRate,
+                         bool validation, IEnumerable<FileInfo> lineDataPaths, DirectoryInfo outputDir)
     {
-        var strings = GenerateStrings(maxNumStrings, maxNumCharacters, randomStringRate, lineDataPath);
+        var strings = GenerateStrings(maxNumStrings, maxNumCharacters, randomStringRate, lineDataPaths);
         var fonts = GenerateFonts(validation);
 
         var randomGenerator = new Random();
@@ -233,13 +238,13 @@ public class LabeledImageData
                 }, Color.White, glyphs)
             );
 
-            image.Save(outputDir + "/" + count + ImageExtension);
+            image.Save(outputDir.FullName + "/" + count + ImageExtension);
             Lines.Add(new Line(count, text));
 
             count++;
         }
 
         string jsonString = JsonSerializer.Serialize(this);
-        File.WriteAllText(outputDir + "/labels.json", jsonString);
+        File.WriteAllText(outputDir.FullName + "/labels.json", jsonString);
     }
 }

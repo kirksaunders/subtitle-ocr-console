@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace subtitle_ocr_console.OCR;
 
 public class LanguageModel
@@ -13,7 +15,7 @@ public class LanguageModel
 
     private Codec _codec;
 
-    public LanguageModel(Codec codec, string lineDataPath)
+    public LanguageModel(Codec codec, IEnumerable<FileInfo> lineDataPaths)
     {
         _codec = codec;
 
@@ -28,11 +30,52 @@ public class LanguageModel
             _secondCharCumulativeProbs[i] = new double[_codec.Count];
         }
 
-        CalculateProbs(lineDataPath);
+        CalculateProbs(lineDataPaths);
         CalculateCululativeProbs();
     }
 
-    private void CalculateProbs(string lineDataPath)
+    public LanguageModel(Codec codec, FileInfo savePath)
+    {
+        _codec = codec;
+
+        JsonSerializerOptions options = new() { IncludeFields = true };
+
+        string jsonString = File.ReadAllText(savePath.FullName);
+        (var firstCharProbs, var secondCharProbs) = JsonSerializer.Deserialize<(double[], double[][])>(jsonString, options);
+
+        if (firstCharProbs == null || secondCharProbs == null)
+        {
+            throw new ArgumentException("Unable to read language model from file");
+        }
+
+        // Ensure size matches
+        if (firstCharProbs.Length != _codec.Count || secondCharProbs.Length != _codec.Count)
+        {
+            throw new ArgumentException("Loaded language model size doesn't match codec size");
+        }
+        foreach (var r in secondCharProbs)
+        {
+            if (r.Length != _codec.Count)
+            {
+                throw new ArgumentException("Loaded language model size doesn't match codec size");
+            }
+        }
+
+        _firstCharProbs = firstCharProbs;
+        _secondCharProbs = secondCharProbs;
+
+        // Allocate memory for cumulative probabilities
+        _firstCharCumulativeProbs = new double[_codec.Count];
+        _secondCharCumulativeProbs = new double[_codec.Count][];
+        for (var i = 0; i < _codec.Count; i++)
+        {
+            _secondCharCumulativeProbs[i] = new double[_codec.Count];
+        }
+
+        CalculateCululativeProbs();
+    }
+
+    private void CalculateProbs(IEnumerable<FileInfo> lineDataPaths)
     {
         int[] firstCharCounts = new int[_codec.Count];
         int numFirstChars = 0;
@@ -40,32 +83,35 @@ public class LanguageModel
         int[] numSecondChars = new int[_codec.Count];
 
         // Count number of occurrences of characters
-        var lines = LineDataReader.ReadLines(_codec, lineDataPath);
-        foreach (var line in lines)
+        foreach (var lineDataPath in lineDataPaths)
         {
-            var chars = line.ToCharArray();
-            int lastIndex = -1;
-            for (var i = 0; i < chars.Length; i++)
+            var lines = LineDataReader.ReadLines(_codec, lineDataPath);
+            foreach (var line in lines)
             {
-                int index = _codec.GetCharacterIndex(chars[i]);
-
-                if (index < 0)
+                var chars = line.ToCharArray();
+                int lastIndex = -1;
+                for (var i = 0; i < chars.Length; i++)
                 {
-                    throw new InvalidOperationException("This code should be unreachable");
-                }
+                    int index = _codec.GetCharacterIndex(chars[i]);
 
-                if (i == 0)
-                {
-                    firstCharCounts[index]++;
-                    numFirstChars++;
-                }
-                else
-                {
-                    secondCharCounts[lastIndex, index]++;
-                    numSecondChars[lastIndex]++;
-                }
+                    if (index < 0)
+                    {
+                        throw new InvalidOperationException("This code should be unreachable");
+                    }
 
-                lastIndex = index;
+                    if (i == 0)
+                    {
+                        firstCharCounts[index]++;
+                        numFirstChars++;
+                    }
+                    else
+                    {
+                        secondCharCounts[lastIndex, index]++;
+                        numSecondChars[lastIndex]++;
+                    }
+
+                    lastIndex = index;
+                }
             }
         }
 
@@ -101,6 +147,30 @@ public class LanguageModel
                 _secondCharCumulativeProbs[i][j] = _secondCharCumulativeProbs[i][j - 1] + _secondCharProbs[i][j];
             }
         }
+    }
+
+    public double GetProbability(int charIndex)
+    {
+        if (charIndex < 0 || charIndex >= _codec.Count)
+        {
+            throw new ArgumentOutOfRangeException("Index out of range for codec");
+        }
+
+        return _firstCharProbs[charIndex];
+    }
+
+    public double GetProbability(int firstCharIndex, int secondCharIndex)
+    {
+        if (firstCharIndex < 0 || firstCharIndex >= _codec.Count)
+        {
+            throw new ArgumentOutOfRangeException("Index out of range for codec");
+        }
+        if (secondCharIndex < 0 || secondCharIndex >= _codec.Count)
+        {
+            throw new ArgumentOutOfRangeException("Index out of range for codec");
+        }
+
+        return _secondCharProbs[firstCharIndex][secondCharIndex];
     }
 
     private static Random randomGenerator = new();
@@ -158,5 +228,15 @@ public class LanguageModel
         var character = _codec.GetCharacter(index) ?? throw new InvalidOperationException("This code should be unreachable");
 
         return character;
+    }
+
+    public void Save(FileInfo path)
+    {
+        JsonSerializerOptions options = new() { IncludeFields = true };
+
+        var data = (_firstCharProbs, _secondCharProbs);
+
+        string jsonString = JsonSerializer.Serialize(data, options);
+        File.WriteAllText(path.FullName, jsonString);
     }
 }

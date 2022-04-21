@@ -11,16 +11,16 @@ namespace subtitle_ocr_console.OCR;
 
 public class InferenceModel
 {
-    private Codec _codec;
+    public Codec _codec;
     private InferenceSession _session;
 
-    public InferenceModel(string path)
+    public InferenceModel(Codec codec, FileInfo savePath)
     {
-        _codec = new(path + "/codec.json");
-        _session = new(path + "/model.onnx");
+        _codec = codec;
+        _session = new(savePath.FullName);
     }
 
-    public List<string> Infer(List<Image<A8>> images)
+    public List<string> Infer(List<Image<A8>> images, LanguageModel? languageModel = null)
     {
         int batchSize = images.Count;
         int maxWidth = -1;
@@ -64,8 +64,7 @@ public class InferenceModel
         var probs = outputs[0].AsTensor<float>();
         var sizes = outputs[1].AsTensor<Int64>();
 
-        //var decoded = CTCGreedyDecoder.Decode(probs, sizes);
-        var decoded = CTCBeamSearchDecoder.Decode(probs, sizes, 100);
+        var decoded = CTCBeamSearchDecoder.Decode(probs, sizes, 100, languageModel);
 
         var strings = new List<string>(batchSize);
         foreach (var seq in decoded)
