@@ -18,6 +18,8 @@ public class LabeledImageData
     private static float _maxRandomScale = 1.35f;
     private static int _fontSize = 48;
 
+    // NOTE: Some fonts have their italic forms disabled (by changing their file extension)
+    //       because ImageSharp doesn't render them correctly.
     private static string[] _trainingFontFamilies =
     {
         "Montserrat",
@@ -28,7 +30,11 @@ public class LabeledImageData
         "Bitter",
         "EBGaramond",
         "Saira",
-        "Jost"
+        "Jost",
+        "Cabin",
+        "Lato",
+        "NanumGothic",
+        "PTSans"
     };
 
     private static string[] _validationFontFamilies =
@@ -38,7 +44,8 @@ public class LabeledImageData
         "STIXTwoText",
         "Piazzolla",
         "LibreFranklin",
-        "NotoSansDisplay"
+        "NotoSansDisplay",
+        "Mukta"
     };
 
     private static FontStyle[] _fontStyles =
@@ -186,12 +193,17 @@ public class LabeledImageData
         {
             foreach (FontStyle style in _fontStyles)
             {
-                // Create font
-                FontFamily family = collection.Add("fonts/" + fontFamily + "/static/" + fontFamily + "-" + style.ToString() + ".ttf");
-                Font font = family.CreateFont(_fontSize, style);
-                TextOptions options = new TextOptions(font);
+                // Some fonts don't have all font styles
+                var fileInfo = new FileInfo("fonts/" + fontFamily + "/static/" + fontFamily + "-" + style.ToString() + ".ttf");
+                if (fileInfo.Exists)
+                {
+                    // Create font
+                    FontFamily family = collection.Add(fileInfo.FullName);
+                    Font font = family.CreateFont(_fontSize, style);
+                    TextOptions options = new TextOptions(font);
 
-                fonts.Add(options);
+                    fonts.Add(options);
+                }
             }
         }
 

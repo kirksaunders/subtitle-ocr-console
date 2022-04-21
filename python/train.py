@@ -1,6 +1,5 @@
 import argparse
 from datetime import datetime
-import json
 from pathlib import Path
 import shutil
 import torch
@@ -20,7 +19,7 @@ parser.add_argument("--train_data_dir", "-t", type=Path, required=True,
                     help="The directory containing the training data")
 parser.add_argument("--valid_data_dir", "-v", type=Path, required=True,
                     help="The directory containing the validation data")
-parser.add_argument("--save_dir", "-s", type=Path, default=now_str, required=False,
+parser.add_argument("--out_dir", "-s", type=Path, default=now_str, required=False,
                     help="The directory to save training logs and model checkpoints to. Defaults to current datetime in cwd/trained/.")
 parser.add_argument("--batch_size", "-b", type=int, default=64, required=False,
                     help="The training batch size.")
@@ -46,11 +45,11 @@ sampler = SortedRandomBatchSampler(valid_dataset, batch_size=args.batch_size)
 valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_sampler=sampler, collate_fn=padded_collate)
 
 # Create output directory for training logs and model checkpoints
-args.save_dir.mkdir(parents=True, exist_ok=False)
-writer = tensorboard.SummaryWriter(log_dir=args.save_dir)
+args.out_dir.mkdir(parents=True, exist_ok=False)
+writer = tensorboard.SummaryWriter(log_dir=args.out_dir)
 
 # Copy dataset codec information to the output directory
-shutil.copy(args.train_data_dir / "codec.json", args.save_dir / "codec.json")
+shutil.copy(args.train_data_dir / "codec.json", args.out_dir / "codec.json")
 
 # Load model and setup optimzer, loss function, decoder, accuracy metric
 model = load_model(len(train_dataset.classes), args.weights)
@@ -81,7 +80,7 @@ with profile(
         active=8,
         repeat=2
     ),
-    on_trace_ready=tensorboard_trace_handler(args.save_dir),
+    on_trace_ready=tensorboard_trace_handler(args.out_dir),
     record_shapes=True,
     profile_memory=True,
     with_stack=False
@@ -178,7 +177,7 @@ with profile(
 
         # Save snapshot of model parameters
         if epoch % args.save_interval == 0:
-            torch.save(model.state_dict(), args.save_dir / ("epoch_" + str(epoch) + ".pt"))
+            torch.save(model.state_dict(), args.out_dir / ("epoch_" + str(epoch) + ".pt"))
 
         # Print results for epoch to console
         print("Epoch: {}, training loss: {}, validation loss: {}, training accuracy: {}, validation accuracy: {}".format(

@@ -112,7 +112,6 @@ static class ProgramEntry
         }
 
         var codec = new Codec(codecPath);
-
         codec.Save(new FileInfo(outDir.FullName + "/codec.json"));
 
         var data = new LabeledImageData(codec);
@@ -194,27 +193,35 @@ static class ProgramEntry
         var model = new InferenceModel(codec, modelPath);
         var langModel = languageModel != null ? new LanguageModel(codec, languageModel) : null;
 
-        List<Image<A8>> images = new();
-        foreach (var path in imagePaths)
-        {
-            using (var image = Image.Load(path.FullName))
-            {
-                var resized = image.CloneAs<A8>();
-                resized.Mutate(ctx =>
-                    ctx.Resize(0, 32)
-                );
-
-                images.Add(resized);
-            }
-        }
-
-
         Console.WriteLine("Recognized text:");
 
-        var strings = model.Infer(images, langModel);
-        foreach ((var path, var str) in imagePaths.Zip(strings))
+        var imagePathsArr = imagePaths.ToArray();
+
+        // Only do 64 at a time
+        for (int i = 0; i < imagePathsArr.Length; i += 64)
         {
-            Console.WriteLine($"{path} => {str}");
+            var end = Math.Min(i + 64, imagePathsArr.Length);
+            var imgPaths = imagePathsArr[i..end];
+
+            List<Image<A8>> images = new();
+            foreach (var path in imgPaths)
+            {
+                using (var image = Image.Load(path.FullName))
+                {
+                    var resized = image.CloneAs<A8>();
+                    resized.Mutate(ctx =>
+                        ctx.Resize(0, 32)
+                    );
+
+                    images.Add(resized);
+                }
+            }
+
+            var strings = model.Infer(images, langModel);
+            foreach ((var path, var str) in imgPaths.Zip(strings))
+            {
+                Console.WriteLine($"{path} => {str}");
+            }
         }
     }
 }

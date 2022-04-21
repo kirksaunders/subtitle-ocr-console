@@ -11,17 +11,17 @@ parser.add_argument("--model_dir", "-m", type=Path, required=True,
                     help="The directory containing the trained model")
 parser.add_argument("--epoch", "-e", type=int, required=True,
                     help="The epoch of the saved weights.")
-parser.add_argument("--save_dir", "-s", type=Path, required=True,
+parser.add_argument("--out_dir", "-s", type=Path, required=True,
                     help="The path to save the exported model to.")
 
 # Parse command line args
 args = parser.parse_args()
 
 # Create output directory for exported model
-args.save_dir.mkdir(parents=True, exist_ok=False)
+args.out_dir.mkdir(parents=True, exist_ok=False)
 
 # Copy model codec information to the output directory
-shutil.copy(args.model_dir / "codec.json", args.save_dir / "codec.json")
+shutil.copy(args.model_dir / "codec.json", args.out_dir / "codec.json")
 
 # Get model codec information
 f = open(args.model_dir / "codec.json", "r")
@@ -36,7 +36,7 @@ model.eval()
 x = torch.ones((1, 1, 4, 32))
 l = torch.tensor([[1, 4, 32]])
 
-torch.onnx.export(model, (x, l), args.save_dir / "model.onnx",
+torch.onnx.export(model, (x, l), args.out_dir / "model.onnx",
                   input_names=["images", "sizes"],
                   output_names=["predictions", "sizes_out"],
                   dynamic_axes={
