@@ -19,7 +19,7 @@ parser.add_argument("--train_data_dir", "-t", type=Path, required=True,
                     help="The directory containing the training data")
 parser.add_argument("--valid_data_dir", "-v", type=Path, required=True,
                     help="The directory containing the validation data")
-parser.add_argument("--out_dir", "-s", type=Path, default=now_str, required=False,
+parser.add_argument("--out_dir", "-o", type=Path, default=now_str, required=False,
                     help="The directory to save training logs and model checkpoints to. Defaults to current datetime in cwd/trained/.")
 parser.add_argument("--batch_size", "-b", type=int, default=64, required=False,
                     help="The training batch size.")

@@ -64,7 +64,7 @@ public class InferenceModel
         var probs = outputs[0].AsTensor<float>();
         var sizes = outputs[1].AsTensor<Int64>();
 
-        var decoded = CTCBeamSearchDecoder.Decode(probs, sizes, 100, languageModel);
+        var decoded = CTCBeamSearchDecoder.Decode(probs, sizes, 50, languageModel);
 
         var strings = new List<string>(batchSize);
         foreach (var seq in decoded)

@@ -34,7 +34,9 @@ public class LabeledImageData
         "Cabin",
         "Lato",
         "NanumGothic",
-        "PTSans"
+        "PTSans",
+        "Rubik",
+        "Poppins"
     };
 
     private static string[] _validationFontFamilies =
@@ -45,7 +47,8 @@ public class LabeledImageData
         "Piazzolla",
         "LibreFranklin",
         "NotoSansDisplay",
-        "Mukta"
+        "Mukta",
+        "TitilliumWeb"
     };
 
     private static FontStyle[] _fontStyles =
@@ -72,25 +75,74 @@ public class LabeledImageData
     public List<Line> Lines { get; } = new();
 
     private Codec _codec;
+    private DirectoryInfo? _directory;
+
+    public class SerializableData
+    {
+        public string ImageExtension { get; set; } = new("");
+        public List<Line> Lines { get; set; } = new();
+    }
 
     public LabeledImageData(Codec codec)
     {
         _codec = codec;
     }
 
-    public LabeledImageData(Codec codec, FileInfo savePath)
+    public LabeledImageData(Codec codec, DirectoryInfo savePath)
     {
         _codec = codec;
+        _directory = savePath;
 
         string jsonString = File.ReadAllText(savePath.FullName + "/labels.json");
-        List<Line>? lines = JsonSerializer.Deserialize<List<Line>>(jsonString);
+        SerializableData? data = JsonSerializer.Deserialize<SerializableData>(jsonString);
 
-        if (lines == null)
+        if (data == null)
         {
             throw new ArgumentException("Unable to read image data labels from file");
         }
 
-        Lines = lines;
+        Lines = data.Lines;
+        ImageExtension = data.ImageExtension;
+    }
+
+    public IEnumerable<IEnumerable<(Image<A8>, string)>> GetBatchedData(int batchSize)
+    {
+        if (batchSize <= 0)
+        {
+            throw new ArgumentException("Batch size must be positive nonzero");
+        }
+        if (_directory == null)
+        {
+            throw new ArgumentNullException("Directory is null. Dataset is empty or uninitialized?");
+        }
+
+        for (var i = 0; i < Lines.Count; i += batchSize)
+        {
+            var end = Math.Min(i + batchSize, Lines.Count);
+            List<(Image<A8>, string)> data = new(end - i);
+
+            for (var j = i; j < end; j++)
+            {
+                Image<A8> image = Image.Load<A8>(_directory.FullName + "/" + Lines[j].Image + ImageExtension);
+                data.Add((image, Lines[j].Text));
+            }
+
+            yield return data;
+        }
+    }
+
+    public IEnumerable<(Image<A8>, string)> GetData()
+    {
+        if (_directory == null)
+        {
+            throw new ArgumentNullException("Directory is null. Dataset is empty or uninitialized?");
+        }
+
+        foreach (var line in Lines)
+        {
+            Image<A8> image = Image.Load<A8>(_directory.FullName + "/" + line.Image + ImageExtension);
+            yield return (image, line.Text);
+        }
     }
 
     private string GenerateRandomString(StringBuilder builder, int numChars, Random randomGenerator)
@@ -213,6 +265,8 @@ public class LabeledImageData
     public void Generate(int maxNumStrings, int maxNumCharacters, int randomStringRate,
                          bool validation, IEnumerable<FileInfo> lineDataPaths, DirectoryInfo outputDir)
     {
+        _directory = outputDir;
+
         var strings = GenerateStrings(maxNumStrings, maxNumCharacters, randomStringRate, lineDataPaths);
         var fonts = GenerateFonts(validation);
 
@@ -256,7 +310,12 @@ public class LabeledImageData
             count++;
         }
 
-        string jsonString = JsonSerializer.Serialize(this);
+        var data = new SerializableData()
+        {
+            Lines = this.Lines,
+            ImageExtension = this.ImageExtension,
+        };
+        string jsonString = JsonSerializer.Serialize(data);
         File.WriteAllText(outputDir.FullName + "/labels.json", jsonString);
     }
 }

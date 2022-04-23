@@ -282,7 +282,7 @@ public static class CTCBeamSearchDecoder
             p = 1e-6f;
         }
 
-        return 0.5f * MathF.Log(p);
+        return 0.25f * MathF.Log(p);
     }
 
     public static List<Tensor<int>> Decode(Tensor<float> probabilities, Tensor<Int64> lengths,

@@ -64,13 +64,42 @@ static class ProgramEntry
         );
         inferCommand.Handler = CommandHandler.Create(TestInference);
 
+        var evalModelCommand = new Command("eval-model", "Evaluates the performance of a model on the given dataset");
+        evalModelCommand.Add(new Argument<FileInfo>("model-path", "Path to the trained model").ExistingOnly());
+        evalModelCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
+        evalModelCommand.Add(new Argument<DirectoryInfo>("data-dir", "Path of directory containing the dataset").ExistingOnly());
+        evalModelCommand.Add(new Option<FileInfo>(
+            new string[] { "--language-model", "-lm" },
+            "Path to the language model").ExistingOnly()
+        );
+        evalModelCommand.Add(new Option<int>(
+            new string[] { "--skip", "-s" },
+            () => -1,
+            "Used to skip random images. For example, if rand-rate was 5 when generating the data, supply 5 here")
+        );
+        evalModelCommand.Handler = CommandHandler.Create(EvalModel);
+
+        var evalTessCommand = new Command("eval-tesseract", "Evaluates the performance of Tesseract on the given dataset");
+        evalTessCommand.Add(new Argument<DirectoryInfo>("tessdata-path", "Path to the tessdata directory").ExistingOnly());
+        evalTessCommand.Add(new Argument<string>("language", "Tesseract language string"));
+        evalTessCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
+        evalTessCommand.Add(new Argument<DirectoryInfo>("data-dir", "Path of directory containing the dataset").ExistingOnly());
+        evalTessCommand.Add(new Option<int>(
+            new string[] { "--skip", "-s" },
+            () => -1,
+            "Used to skip random images. For example, if rand-rate was 5 when generating the data, supply 5 here")
+        );
+        evalTessCommand.Handler = CommandHandler.Create(EvalTesseract);
+
         var rootCommand = new RootCommand("Command line tool for converting PGS subtitles to SRT subtitles using OCR")
         {
             pgsCommand,
             codecCommand,
             dataCommand,
             lmCommand,
-            inferCommand
+            inferCommand,
+            evalModelCommand,
+            evalTessCommand
         };
 
         rootCommand.Invoke(args);
@@ -206,10 +235,9 @@ static class ProgramEntry
             List<Image<A8>> images = new();
             foreach (var path in imgPaths)
             {
-                using (var image = Image.Load(path.FullName))
+                using (Image<A8> image = Image.Load<A8>(path.FullName))
                 {
-                    var resized = image.CloneAs<A8>();
-                    resized.Mutate(ctx =>
+                    var resized = image.Clone(ctx =>
                         ctx.Resize(0, 32)
                     );
 
@@ -223,5 +251,80 @@ static class ProgramEntry
                 Console.WriteLine($"{path} => {str}");
             }
         }
+    }
+
+    static void EvalModel(FileInfo modelPath, FileInfo codecPath, DirectoryInfo dataDir, FileInfo languageModel, int skip)
+    {
+        var codec = new Codec(codecPath);
+        var model = new InferenceModel(codec, modelPath);
+        var data = new LabeledImageData(codec, dataDir);
+        var langModel = languageModel != null ? new LanguageModel(codec, languageModel) : null;
+
+        // Do 64 at a time
+        var totalErrors = 0;
+        var totalCharacters = 0;
+        var count = -1;
+        foreach (var batch in data.GetBatchedData(64))
+        {
+            List<Image<A8>> images = new();
+            List<string> texts = new();
+            foreach ((var image, var text) in batch)
+            {
+                count++;
+                if (skip > 0 && count % (skip + 1) == skip)
+                {
+                    continue;
+                }
+                images.Add(image);
+                texts.Add(text);
+            }
+
+            var strings = model.Infer(images, langModel);
+            foreach ((var text, var str) in texts.Zip(strings))
+            {
+                var dist = LevenshteinDistance.Distance(text, str);
+                totalErrors += dist;
+                totalCharacters += text.Length;
+                Console.WriteLine($"Levenshtein distance: {dist}, {text} => {str}");
+            }
+        }
+
+        double characterErrorRate = (double)totalErrors / totalCharacters;
+        Console.WriteLine($"Character error rate: {characterErrorRate}");
+    }
+
+    static void EvalTesseract(DirectoryInfo tessdataPath, string language, FileInfo codecPath, DirectoryInfo dataDir, int skip)
+    {
+        var model = new TesseractModel(tessdataPath, language);
+        var codec = new Codec(codecPath);
+        var data = new LabeledImageData(codec, dataDir);
+
+        var totalErrors = 0;
+        var totalCharacters = 0;
+        int count = -1;
+        foreach ((var image, var text) in data.GetData())
+        {
+            count++;
+            if (skip > 0 && count % (skip + 1) == skip)
+            {
+                continue;
+            }
+
+            // Zoom image out a bit (to give Tesseract a fair shot since it doesn't
+            // like tightly cropped images)
+            var newImage = new Image<Rgba32>(image.Width + 10, image.Height + 10);
+            newImage.Mutate(ctx =>
+                ctx.DrawImage(image, new Point(5, 5), 1.0f)
+            );
+
+            var str = model.Infer(newImage);
+            var dist = LevenshteinDistance.Distance(text, str);
+            totalErrors += dist;
+            totalCharacters += text.Length;
+            Console.WriteLine($"Levenshtein distance: {dist}, {text} => {str}");
+        }
+
+        double characterErrorRate = (double)totalErrors / totalCharacters;
+        Console.WriteLine($"Character error rate: {characterErrorRate}");
     }
 }

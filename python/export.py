@@ -11,7 +11,7 @@ parser.add_argument("--model_dir", "-m", type=Path, required=True,
                     help="The directory containing the trained model")
 parser.add_argument("--epoch", "-e", type=int, required=True,
                     help="The epoch of the saved weights.")
-parser.add_argument("--out_dir", "-s", type=Path, required=True,
+parser.add_argument("--out_dir", "-o", type=Path, required=True,
                     help="The path to save the exported model to.")
 
 # Parse command line args
