@@ -1,11 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
-    <RootNamespace>subtitle_ocr_console</RootNamespace>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <ImplicitUsings>enable</ImplicitUsings>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
+    <PublishSingleFile>true</PublishSingleFile>
+    <RootNamespace>subtitle_ocr_console</RootNamespace>
+    <SelfContained>true</SelfContained>
+    <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,7 +19,19 @@
     <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta16" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta3.22114.1" />
     <PackageReference Include="System.CommandLine.NamingConventionBinder" Version="2.0.0-beta3.22114.1" />
+    <PackageReference Include="ShellProgressBar" Version="5.1.0" />
     <PackageReference Include="Tesseract" Version="4.1.1" />
+  </ItemGroup>
+
+  <!-- <ItemGroup>
+    <Content Include="trained-models/**/*.*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup> -->
+
+  <ItemGroup>
+    <EmbeddedResource Include="trained-models\**\*.*" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace subtitle_ocr_console.OCR;
@@ -38,9 +39,27 @@ public class LanguageModel
     {
         _codec = codec;
 
-        JsonSerializerOptions options = new() { IncludeFields = true };
-
         string jsonString = File.ReadAllText(savePath.FullName);
+        LoadFromJson(jsonString);
+    }
+
+    public LanguageModel(Codec codec, Stream inputStream)
+    {
+        _codec = codec;
+
+        var reader = new StreamReader(inputStream);
+        string jsonString = reader.ReadToEnd();
+        LoadFromJson(jsonString);
+    }
+
+    // These annotations are here to suppress a warning by saying "this function defines these fields"
+    [MemberNotNull(nameof(_firstCharProbs))]
+    [MemberNotNull(nameof(_firstCharCumulativeProbs))]
+    [MemberNotNull(nameof(_secondCharProbs))]
+    [MemberNotNull(nameof(_secondCharCumulativeProbs))]
+    private void LoadFromJson(string jsonString)
+    {
+        JsonSerializerOptions options = new() { IncludeFields = true };
         (var firstCharProbs, var secondCharProbs) = JsonSerializer.Deserialize<(double[], double[][])>(jsonString, options);
 
         if (firstCharProbs == null || secondCharProbs == null)

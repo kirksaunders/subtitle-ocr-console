@@ -82,4 +82,40 @@ public class PGSReader
             }
         }
     }
+
+    public IEnumerable<(PGSFrame, double)> GetFramesWithProgress()
+    {
+        var state = new PGSState();
+
+        for (int i = 0; i < _segments.Count; i++)
+        {
+            var segment = _segments[i];
+
+            switch (segment.Header.Type)
+            {
+                case SegmentHeader.SegmentType.PDS:
+                    state.DefinePalette((PDSegment)segment);
+                    break;
+
+                case SegmentHeader.SegmentType.ODS:
+                    state.DefineObject((ODSegment)segment);
+                    break;
+
+                case SegmentHeader.SegmentType.PCS:
+                    state.ProcessPCS((PCSegment)segment);
+                    break;
+
+                case SegmentHeader.SegmentType.WDS:
+                    state.DefineWindows((WDSegment)segment);
+                    break;
+
+                case SegmentHeader.SegmentType.END:
+                    yield return (state.GetFrame(), (double)i / (_segments.Count - 1));
+                    break;
+
+                default:
+                    break;
+            }
+        }
+    }
 }

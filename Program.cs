@@ -1,16 +1,21 @@
 ﻿using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;
+using System.Reflection;
 using System.Text;
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
+using ShellProgressBar;
+
 using subtitle_ocr_console.OCR;
 using subtitle_ocr_console.Subtitles.PGS;
 using subtitle_ocr_console.Subtitles.SRT;
 using subtitle_ocr_console.Subtitles.Segmentation;
 using subtitle_ocr_console.Utils;
+
+namespace subtitle_ocr_console;
 
 static class ProgramEntry
 {
@@ -97,7 +102,7 @@ static class ProgramEntry
         var convertCommand = new Command("convert", "Converts a PGS subtitle file to SRT");
         convertCommand.Add(new Argument<FileInfo>("pgs-path", "Path to PGS file").ExistingOnly());
         convertCommand.Add(new Argument<FileInfo>("srt-path", "Path to save converted SRT file to").LegalFilePathsOnly());
-        convertCommand.Add(new Argument<DirectoryInfo>("model-dir", "Directory containing model data (including codec and language model)").ExistingOnly());
+        convertCommand.Add(new Argument<string>("model-str", "The name of the trained model (bundled in the executable assembly)"));
         convertCommand.Handler = CommandHandler.Create(ConvertPGS);
 
         var rootCommand = new RootCommand("Command line tool for converting PGS subtitles to SRT subtitles using OCR")
@@ -350,16 +355,39 @@ static class ProgramEntry
         Console.WriteLine($"Character error rate: {characterErrorRate}");
     }
 
-    static void ConvertPGS(FileInfo pgsPath, FileInfo srtPath, DirectoryInfo modelDir)
+    static void ConvertPGS(FileInfo pgsPath, FileInfo srtPath, string modelStr)
     {
-        // Load model
-        var codec = new Codec(new FileInfo(modelDir.FullName + "/codec.json"));
-        var model = new InferenceModel(codec, new FileInfo(modelDir.FullName + "/model.onnx"));
+        // Load model from executable assembly
+        var assembly = Assembly.GetExecutingAssembly();
+        var entryType = typeof(ProgramEntry);
+        var dataPrefix = "trained_models";
+
+        Codec codec;
+        InferenceModel model;
         LanguageModel? langModel = null;
-        var lmPath = new FileInfo(modelDir.FullName + "/lm.json");
-        if (lmPath.Exists)
+        try
         {
-            langModel = new LanguageModel(codec, lmPath);
+            codec = new(assembly.GetManifestResourceStream(entryType, $"{dataPrefix}.{modelStr}.codec.json")
+                        ?? throw new FileNotFoundException($"Could not find codec for model {modelStr}"));
+            model = new(codec, assembly.GetManifestResourceStream(entryType, $"{dataPrefix}.{modelStr}.model.onnx")
+                        ?? throw new FileNotFoundException($"Could not find ONNX file for model {modelStr}"));
+
+            try
+            {
+                langModel = new(codec, assembly.GetManifestResourceStream(entryType, $"{dataPrefix}.{modelStr}.lm.json")
+                                ?? throw new FileNotFoundException($"Could not find language model for model {modelStr}"));
+            }
+            catch (FileNotFoundException ex)
+            {
+                // If language model doesn't exist, that's fine! Just print a warning.
+                Console.Error.WriteLine($"WARNING: Unable to read language model: {ex.Message}");
+
+                langModel = null;
+            }
+        }
+        catch (FileNotFoundException ex)
+        {
+            throw new ArgumentException("Error reading model from executable binary", ex);
         }
 
         PGSReader pgsReader;
@@ -372,44 +400,51 @@ static class ProgramEntry
             }
         }
 
+        // Convert file and display progress bar
         SRT srt = new();
         SRTFrame? lastFrame = null;
-        foreach (var frame in pgsReader.GetFrames())
+        using (var bar = new ProgressBar(10000, "Converting PGS to SRT..."))
         {
-            var text = new StringBuilder();
-            foreach (var img in frame.Images)
+            var progressReporter = bar.AsProgress<double>();
+            foreach ((var frame, var progress) in pgsReader.GetFramesWithProgress())
             {
-                var binarized = ImageBinarizer.Binarize(img.Img, 0.5);
-                var lines = LineSegmenter.Segment(binarized);
-
-                // Ensure images are the proper height
-                foreach (var line in lines)
+                var text = new StringBuilder();
+                foreach (var img in frame.Images)
                 {
-                    line.Mutate(ctx => ctx.Resize(0, 32));
-                }
+                    var binarized = ImageBinarizer.Binarize(img.Img, 0.5);
+                    var lines = LineSegmenter.Segment(binarized);
 
-                var strings = model.Infer(lines, langModel);
-                foreach (var str in strings)
-                {
-                    if (text.Length > 0)
+                    // Ensure images are the proper height
+                    foreach (var line in lines)
                     {
-                        text.Append('\n');
+                        line.Mutate(ctx => ctx.Resize(0, 32));
                     }
-                    text.Append(str);
+
+                    var strings = model.Infer(lines, langModel);
+                    foreach (var str in strings)
+                    {
+                        if (text.Length > 0)
+                        {
+                            text.Append('\n');
+                        }
+                        text.Append(str);
+                    }
                 }
-            }
 
-            if (lastFrame != null && lastFrame.Text.Length > 0)
-            {
-                lastFrame.EndTimestamp = frame.Timestamp;
-                srt.AddFrame(lastFrame);
-            }
+                if (lastFrame != null && lastFrame.Text.Length > 0)
+                {
+                    lastFrame.EndTimestamp = frame.Timestamp;
+                    srt.AddFrame(lastFrame);
+                }
 
-            lastFrame = new SRTFrame(frame.Timestamp, text.ToString());
+                lastFrame = new SRTFrame(frame.Timestamp, text.ToString());
+
+                // Update progress bar
+                progressReporter.Report(progress);
+            }
+            progressReporter.Report(1.0);
         }
 
         srt.Write(srtPath);
-
-        Console.WriteLine($"Done. SRT file written to {srtPath}");
     }
 }

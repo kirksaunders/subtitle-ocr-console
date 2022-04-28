@@ -26,6 +26,22 @@ public class InferenceModel
         _simMatrix.Add((_codec.GetCharacterIndex('I'), _codec.GetCharacterIndex('l'), 0.75f));
     }
 
+    public InferenceModel(Codec codec, Stream inputStream)
+    {
+        _codec = codec;
+
+        // Read model into memory and instantiate inference session via byte array
+        byte[] bytes;
+        using (var memoryStream = new MemoryStream())
+        {
+            inputStream.CopyTo(memoryStream);
+            bytes = memoryStream.ToArray();
+        }
+        _session = new(bytes);
+
+        _simMatrix.Add((_codec.GetCharacterIndex('I'), _codec.GetCharacterIndex('l'), 0.75f));
+    }
+
     public List<string> Infer(List<Image<A8>> images, LanguageModel? languageModel = null)
     {
         int batchSize = images.Count;

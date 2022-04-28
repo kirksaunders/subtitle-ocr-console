@@ -35,6 +35,20 @@ public class Codec
         _characters = chars;
     }
 
+    public Codec(Stream inputStream)
+    {
+        var reader = new StreamReader(inputStream);
+        string jsonString = reader.ReadToEnd();
+        var chars = JsonSerializer.Deserialize<List<CodecCharacter>>(jsonString);
+
+        if (chars == null)
+        {
+            throw new ArgumentException("Unable to read codec from stream");
+        }
+
+        _characters = chars;
+    }
+
     /// <summary>
     /// Method <c>GetCharacterIndex</c>
     /// <returns>
