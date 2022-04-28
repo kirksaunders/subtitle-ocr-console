@@ -6,6 +6,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
 using subtitle_ocr_console.OCR.Decoders;
+using static subtitle_ocr_console.Utils.Logarithms;
 
 namespace subtitle_ocr_console.OCR;
 
@@ -14,10 +15,15 @@ public class InferenceModel
     public Codec _codec;
     private InferenceSession _session;
 
+    // TODO: Make this its own class so it can be saved/loaded to/from file
+    private List<(int, int, float)> _simMatrix = new();
+
     public InferenceModel(Codec codec, FileInfo savePath)
     {
         _codec = codec;
         _session = new(savePath.FullName);
+
+        _simMatrix.Add((_codec.GetCharacterIndex('I'), _codec.GetCharacterIndex('l'), 0.75f));
     }
 
     public List<string> Infer(List<Image<A8>> images, LanguageModel? languageModel = null)
@@ -64,7 +70,40 @@ public class InferenceModel
         var probs = outputs[0].AsTensor<float>();
         var sizes = outputs[1].AsTensor<Int64>();
 
-        var decoded = CTCBeamSearchDecoder.Decode(probs, sizes, 50, languageModel);
+        // Apply similarity matrix
+        var newProbs = probs.Clone();
+        foreach ((var i, var j, var weight) in _simMatrix)
+        {
+            // TODO: Make this based on blankIndex (not hardcoded)
+            int x = i + 1;
+            int y = j + 1;
+            float w = (float)weight * 0.5f;
+            for (var b = 0; b < batchSize; b++)
+            {
+                int numPreds = (int)sizes[b, 0];
+                for (var t = 0; t < numPreds; t++)
+                {
+                    float p1 = MathF.Exp(probs[b, t, x]);
+                    float p2 = MathF.Exp(probs[b, t, y]);
+                    if (p2 > p1)
+                    {
+                        float dif = MathF.Log((p2 - p1) * w);
+
+                        newProbs[b, t, x] = LogAddExp(newProbs[b, t, x], dif);
+                        newProbs[b, t, y] = LogSubExp(newProbs[b, t, y], dif);
+                    }
+                    else if (p1 > p2)
+                    {
+                        float dif = MathF.Log((p1 - p2) * w);
+
+                        newProbs[b, t, x] = LogSubExp(newProbs[b, t, x], dif);
+                        newProbs[b, t, y] = LogAddExp(newProbs[b, t, y], dif);
+                    }
+                }
+            }
+        }
+
+        var decoded = CTCBeamSearchDecoder.Decode(newProbs, sizes, 50, languageModel);
 
         var strings = new List<string>(batchSize);
         foreach (var seq in decoded)

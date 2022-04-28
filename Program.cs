@@ -1,5 +1,6 @@
 ﻿using System.CommandLine;
 using System.CommandLine.NamingConventionBinder;
+using System.Text;
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -7,6 +8,8 @@ using SixLabors.ImageSharp.Processing;
 
 using subtitle_ocr_console.OCR;
 using subtitle_ocr_console.Subtitles.PGS;
+using subtitle_ocr_console.Subtitles.SRT;
+using subtitle_ocr_console.Subtitles.Segmentation;
 using subtitle_ocr_console.Utils;
 
 static class ProgramEntry
@@ -91,6 +94,12 @@ static class ProgramEntry
         );
         evalTessCommand.Handler = CommandHandler.Create(EvalTesseract);
 
+        var convertCommand = new Command("convert", "Converts a PGS subtitle file to SRT");
+        convertCommand.Add(new Argument<FileInfo>("pgs-path", "Path to PGS file").ExistingOnly());
+        convertCommand.Add(new Argument<FileInfo>("srt-path", "Path to save converted SRT file to").LegalFilePathsOnly());
+        convertCommand.Add(new Argument<DirectoryInfo>("model-dir", "Directory containing model data (including codec and language model)").ExistingOnly());
+        convertCommand.Handler = CommandHandler.Create(ConvertPGS);
+
         var rootCommand = new RootCommand("Command line tool for converting PGS subtitles to SRT subtitles using OCR")
         {
             pgsCommand,
@@ -99,7 +108,8 @@ static class ProgramEntry
             lmCommand,
             inferCommand,
             evalModelCommand,
-            evalTessCommand
+            evalTessCommand,
+            convertCommand
         };
 
         rootCommand.Invoke(args);
@@ -107,14 +117,26 @@ static class ProgramEntry
 
     static void ParsePGS(FileInfo path, DirectoryInfo outDir)
     {
+        PGSReader pgsReader;
         using (var stream = path.Open(FileMode.Open))
         {
             using (var reader = new EndiannessAwareBinaryReader(stream, System.Text.Encoding.UTF8,
                                                                 false, EndiannessAwareBinaryReader.Endianness.Big))
             {
-                var pgs = new PGSReader(reader);
-                pgs.WriteImages(outDir);
+                pgsReader = new PGSReader(reader);
             }
+        }
+
+        int frameCount = 0;
+        foreach (var frame in pgsReader.GetFrames())
+        {
+            int windowCount = 0;
+            foreach (var img in frame.Images)
+            {
+                img.Img.Save($"{outDir.FullName}/frame_{frameCount}_window_{windowCount}.png");
+                windowCount++;
+            }
+            frameCount++;
         }
 
         Console.WriteLine($"Done. Files written to {outDir}");
@@ -326,5 +348,68 @@ static class ProgramEntry
 
         double characterErrorRate = (double)totalErrors / totalCharacters;
         Console.WriteLine($"Character error rate: {characterErrorRate}");
+    }
+
+    static void ConvertPGS(FileInfo pgsPath, FileInfo srtPath, DirectoryInfo modelDir)
+    {
+        // Load model
+        var codec = new Codec(new FileInfo(modelDir.FullName + "/codec.json"));
+        var model = new InferenceModel(codec, new FileInfo(modelDir.FullName + "/model.onnx"));
+        LanguageModel? langModel = null;
+        var lmPath = new FileInfo(modelDir.FullName + "/lm.json");
+        if (lmPath.Exists)
+        {
+            langModel = new LanguageModel(codec, lmPath);
+        }
+
+        PGSReader pgsReader;
+        using (var stream = pgsPath.Open(FileMode.Open))
+        {
+            using (var reader = new EndiannessAwareBinaryReader(stream, System.Text.Encoding.UTF8,
+                                                                false, EndiannessAwareBinaryReader.Endianness.Big))
+            {
+                pgsReader = new PGSReader(reader);
+            }
+        }
+
+        SRT srt = new();
+        SRTFrame? lastFrame = null;
+        foreach (var frame in pgsReader.GetFrames())
+        {
+            var text = new StringBuilder();
+            foreach (var img in frame.Images)
+            {
+                var binarized = ImageBinarizer.Binarize(img.Img, 0.5);
+                var lines = LineSegmenter.Segment(binarized);
+
+                // Ensure images are the proper height
+                foreach (var line in lines)
+                {
+                    line.Mutate(ctx => ctx.Resize(0, 32));
+                }
+
+                var strings = model.Infer(lines, langModel);
+                foreach (var str in strings)
+                {
+                    if (text.Length > 0)
+                    {
+                        text.Append('\n');
+                    }
+                    text.Append(str);
+                }
+            }
+
+            if (lastFrame != null && lastFrame.Text.Length > 0)
+            {
+                lastFrame.EndTimestamp = frame.Timestamp;
+                srt.AddFrame(lastFrame);
+            }
+
+            lastFrame = new SRTFrame(frame.Timestamp, text.ToString());
+        }
+
+        srt.Write(srtPath);
+
+        Console.WriteLine($"Done. SRT file written to {srtPath}");
     }
 }

@@ -1,12 +1,14 @@
 import json
 import numpy as np
 import torch
+import torchvision
 from torch import nn
 from PIL import Image
 
 class TextDataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir):
+    def __init__(self, data_dir, augmentation=False):
         self.data_dir = data_dir
+        self.augmentation = augmentation
 
         f = open(data_dir / "labels.json", "r")
         data = json.load(f)
@@ -27,6 +29,9 @@ class TextDataset(torch.utils.data.Dataset):
 
         self.image_labels = data["Lines"]
 
+        if self.augmentation:
+            self.rand_translate = torchvision.transforms.RandomAffine(degrees=0, translate=(0.1, 0.0))
+
     def __len__(self):
         return len(self.image_labels)
 
@@ -43,6 +48,7 @@ class TextDataset(torch.utils.data.Dataset):
             img_data = img_data.astype(np.float32) / 255.0
             img_tensor = torch.from_numpy(img_data)
             img_tensor = img_tensor.transpose(0, 1) # Make width come first
+            img_tensor = img_tensor.unsqueeze(0) # Add one channel
             annotation["LoadedImage"] = img_tensor
 
         # Load and encode label
@@ -52,42 +58,29 @@ class TextDataset(torch.utils.data.Dataset):
                 label[i] = self.class_map[annotation["Text"][i]]
             annotation["EncodedLabel"] = label
 
-        return annotation["LoadedImage"], annotation["EncodedLabel"]
-
-class SortedRandomBatchSampler(torch.utils.data.Sampler):
-    def __init__(self, data_source, batch_size=None, generator=None):
-        self.data_source = data_source
-        self.batch_size = batch_size
-        self.generator = generator
-
-        if not isinstance(self.batch_size, int) or self.batch_size <= 0:
-            raise ValueError("batch_size should be a positive integer "
-                             "value, but got batch_size={}".format(self.batch_size))
-
-    def _sort(self, indices):
-        return sorted(indices, key=lambda x: self.data_source[x][0].size(0), reverse=True)
-
-    def __iter__(self):
-        n = len(self.data_source)
-        if self.generator is None:
-            seed = int(torch.empty((), dtype=torch.int64).random_().item())
-            generator = torch.Generator()
-            generator.manual_seed(seed)
+        # Do augmentation
+        if self.augmentation:
+            img = annotation["LoadedImage"]
+            size = img.size()
+            rand_resize = 0.85 + torch.rand(1) * 0.55
+            width = int(size[1] * rand_resize + 0.5)
+            out_img = torchvision.transforms.Resize((width, size[2]))(img)
+            out_img = self.rand_translate(out_img)
         else:
-            generator = self.generator
+            out_img = annotation["LoadedImage"]
 
-        perm = torch.randperm(n, generator=generator)
+        # Remove channel dimension (because pad_sequence in the batch collate fn needs it gone anyways)
+        out_img = out_img.squeeze(0)
 
-        for i in range(0, n, self.batch_size):
-            yield self._sort(perm[i:min(n, i+self.batch_size)].tolist())
+        return out_img, annotation["EncodedLabel"]
 
-    def __len__(self):
-        return len(self.data_source)
+def padded_sorted_collate(batch):
+    # Reverse sort by image width
+    batch.sort(reverse=True, key=lambda x: x[0].size(0))
 
-def padded_collate(batch):
     images = [x[0] for x in batch]
     labels = [x[1] for x in batch]
-    
+
     # Pad images by the max width in batch
     image_sizes = torch.tensor([x.size() for x in images], dtype=torch.long)
     padded_images = nn.utils.rnn.pad_sequence(images, batch_first=True)

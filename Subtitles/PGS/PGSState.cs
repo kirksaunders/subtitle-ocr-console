@@ -1,8 +1,6 @@
 ﻿using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using subtitle_ocr_console.Subtitles.Segmentation;
-using subtitle_ocr_console.Utils;
 
 namespace subtitle_ocr_console.Subtitles.PGS;
 
@@ -51,6 +49,7 @@ class PGSState
     private int _displayWidth;
     private int _displayHeight;
     private int _frameRate;
+    private int _timestamp;
     private int _currentPalette = -1;
 
     public void ResetCompositionObjects()
@@ -187,10 +186,14 @@ class PGSState
 
             _currentPalette = segment.PaletteID;
         }
+
+        // Calculate timestamp (in seconds)
+        _timestamp = (int)segment.Header.PresentationTimestamp / 90;
     }
 
-    public void WriteResult(String name)
+    public PGSFrame GetFrame()
     {
+        var frame = new PGSFrame(_timestamp);
         var windowImages = new Image<Rgba32>?[_windows.Count];
 
         foreach (var compositionObject in _compositionObjects)
@@ -236,20 +239,10 @@ class PGSState
             var img = windowImages[i];
             if (img != null)
             {
-                img.Save(name + "_window_" + i.ToString() + ".png");
-
-                var binarized = ImageBinarizer.Binarize(img, 0.5);
-
-                var segmenter = new LineSegmenter(binarized);
-                segmenter.Segment();
-
-                int count = 0;
-                foreach (var line in segmenter.Lines)
-                {
-                    line.Save(name + "_window_" + i.ToString() + "_line_" + count + ".png");
-                    count++;
-                }
+                frame.AddImage(new PGSFrame.PGSImage(img, _windows[i].HorizontalPosition, _windows[i].VerticalPosition));
             }
         }
+
+        return frame;
     }
 }

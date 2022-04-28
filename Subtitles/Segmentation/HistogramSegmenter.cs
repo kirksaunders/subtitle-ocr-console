@@ -1,62 +1,45 @@
-﻿using System.Collections.ObjectModel;
+﻿namespace subtitle_ocr_console.Subtitles.Segmentation;
 
-namespace subtitle_ocr_console.Subtitles.Segmentation;
-
-public class HistogramSegmenter
+public static class HistogramSegmenter
 {
-    private int _stride;
-    private double _upperThreshold;
-    private double _lowerThreshold;
-    private int _minWidth;
-    private List<int> _histogram;
-
-    private List<int> _segmentPoints = new();
-    public ReadOnlyCollection<int> SegmentPoints => _segmentPoints.AsReadOnly();
-
-    // TODO: Rename minWidth to something more accurate. Maybe minSize?
-    public HistogramSegmenter(List<int> histogram, int stride, double upperThreshold, double lowerThreshold, int minWidth)
+    public static List<int> Segment(List<int> histogram, int stride, double upperThreshold, double lowerThreshold, int minSize)
     {
-        _histogram = histogram;
-        _stride = stride;
-        _upperThreshold = upperThreshold;
-        _lowerThreshold = lowerThreshold;
-        _minWidth = minWidth;
-    }
-
-    public void GenerateSegments()
-    {
+        var segmentPoints = new List<int>();
         bool high = false;
-        for (int pos = 0; pos < _histogram.Count; pos += _stride)
+        for (int pos = 0; pos < histogram.Count; pos += stride)
         {
             int sum = 0;
-            int count = Math.Min(_stride, _histogram.Count - pos);
+            int count = Math.Min(stride, histogram.Count - pos);
             for (int i = 0; i < count; i++)
             {
-                sum += _histogram[pos + i];
+                sum += histogram[pos + i];
             }
 
             double average = (double)sum / count;
 
-            if (high && average < _lowerThreshold)
+            if (high && average < lowerThreshold)
             {
-                int width = (pos + count / 2) - _segmentPoints[^1] + 1;
-                if (width >= _minWidth)
+                int point = pos - stride + stride / 2; // Insert previous as point
+                int width = point - segmentPoints[^1] + 1;
+                if (width >= minSize)
                 {
                     high = false;
-                    _segmentPoints.Add(pos + count / 2);
+                    segmentPoints.Add(point);
                 }
             }
-            else if (!high && average > _upperThreshold)
+            else if (!high && average > upperThreshold)
             {
                 high = true;
-                _segmentPoints.Add(pos > 0 ? (pos - _stride) + _stride / 2 : 0);
+                segmentPoints.Add(pos + count / 2);
             }
         }
 
         // Every opening segment point needs a closing one
-        if (_segmentPoints.Count % 2 != 0)
+        if (segmentPoints.Count % 2 != 0)
         {
-            _segmentPoints.Add(_histogram.Count - 1);
+            segmentPoints.Add(histogram.Count - 1);
         }
+
+        return segmentPoints;
     }
 }

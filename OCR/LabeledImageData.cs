@@ -14,40 +14,38 @@ public class LabeledImageData
 {
     private static int _targetHeight = 32;
     private static int _minWidth = 4;
-    private static float _minRandomScale = 0.85f;
-    private static float _maxRandomScale = 1.35f;
     private static int _fontSize = 48;
 
     // NOTE: Some fonts have their italic forms disabled (by changing their file extension)
     //       because ImageSharp doesn't render them correctly.
     private static string[] _trainingFontFamilies =
     {
-        "Montserrat",
-        "OpenSans",
-        "Yrsa",
-        "Exo",
-        "Lora",
         "Bitter",
-        "EBGaramond",
-        "Saira",
-        "Jost",
         "Cabin",
+        "EBGaramond",
+        "Exo",
+        "Jost",
+        "Lora",
         "Lato",
+        "Montserrat",
         "NanumGothic",
+        "OpenSans",
+        "Poppins",
         "PTSans",
         "Rubik",
-        "Poppins"
+        "Saira",
+        "Yrsa"
     };
 
     private static string[] _validationFontFamilies =
     {
-        "SourceSans3",
         "Besley",
-        "STIXTwoText",
-        "Piazzolla",
         "LibreFranklin",
-        "NotoSansDisplay",
         "Mukta",
+        "NotoSansDisplay",
+        "Piazzolla",
+        "SourceSans3",
+        "STIXTwoText",
         "TitilliumWeb"
     };
 
@@ -283,12 +281,7 @@ public class LabeledImageData
 
             // Scale so height fills render area and apply some random stretching on x 
             var scale = (float)_targetHeight / glyphs.Bounds.Height;
-            var rx = 1.0f;
-            if (!validation)
-            {
-                rx = _minRandomScale + (_maxRandomScale - _minRandomScale) * randomGenerator.NextSingle();
-            }
-            glyphs = glyphs.Scale(scale * rx, scale);
+            glyphs = glyphs.Scale(scale);
 
             // Translate so the text starts at leftmost and is centered vertically
             glyphs = glyphs.Translate(-glyphs.Bounds.X, -glyphs.Bounds.Y);

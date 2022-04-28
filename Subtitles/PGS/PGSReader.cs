@@ -45,14 +45,11 @@ public class PGSReader
 
             _segments.Add(segment);
         }
-
-        Console.WriteLine("Number of segments: " + _segments.Count);
     }
 
-    public void WriteImages(DirectoryInfo outputDir)
+    public IEnumerable<PGSFrame> GetFrames()
     {
         var state = new PGSState();
-        var count = 0;
 
         for (int i = 0; i < _segments.Count; i++)
         {
@@ -77,8 +74,7 @@ public class PGSReader
                     break;
 
                 case SegmentHeader.SegmentType.END:
-                    state.WriteResult(outputDir + "/" + count.ToString());
-                    count++;
+                    yield return state.GetFrame();
                     break;
 
                 default:

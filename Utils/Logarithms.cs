@@ -25,4 +25,18 @@ public static class Logarithms
             return b + MathF.Log(1.0f + MathF.Exp(a - b));
         }
     }
+
+    public static float LogSubExp(float a, float b)
+    {
+        if (a == LOG_0 || a < b)
+        {
+            return LOG_0; // Can't represent negative in log-space
+        }
+        else if (b == LOG_0)
+        {
+            return a;
+        }
+
+        return a + MathF.Log(1.0f - MathF.Exp(b - a));
+    }
 }
