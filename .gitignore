@@ -1,6 +1,3 @@
-out/
-train-data/
-valid-data/
 trained/
 
 __pycache__/
