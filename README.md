@@ -99,7 +99,7 @@ To quickly test inference of the model, the `test-inference` command is used. He
 where the images have already been binarized.
 
 ### Evaluating Tesseract
-To evaluate Tesseract OCR, you must be using Windows. This is due to the C# bindings not bundling the Tesseract shared libraries for any platform other than Windows. Furthermore, you must run the program using `dotnet run` instead of invoking the built executable directly (the C# bindings are quite bad). An example of that command is:
+To evaluate Tesseract OCR, you must be using Windows. This is due to the C# bindings not bundling the Tesseract shared libraries for any platform other than Windows. Furthermore, you must run the program using `dotnet run` instead of invoking the built executable directly (the C# bindings are quite bad). You can access a developer console by going to `Tools->Command Line->Developer Powershell` in Visual Studio. An example of that command is:
 ```
 dotnet run -- eval-tesseract tessdata-dir/ eng codec.json validation-dataset-dir/
 ```
