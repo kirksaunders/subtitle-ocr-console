@@ -16,11 +16,11 @@ The code contained within this repository is the original work of Kirk Saunders,
 ## Build Instructions
 Depending on your platform and toolset, your build instructions vary. In general, building is done like any other C# project.
 
-### On Linux
-Assuming you have the .NET SDK installed, a self-contained executable can be built with `dotnet publish -c release --self-contained --runtime linux-x64`. The produced executable is at `bin/release/net6.0/linux-x64/publish/subtitle-ocr-console`. This executable is completely self-contained and can be copied/moved to a separate directory for running any commands (except the Tesseract command, since it's not supported on Linux).
+### On Linux (Or Dotnet Command Line in General)
+Assuming you have the .NET SDK installed, a self-contained executable can be built with `dotnet publish -c release --self-contained --runtime linux-x64`. You can modify the runtime to match your platform (see list [here](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)). The produced executable is at `bin/release/net6.0/linux-x64/publish/subtitle-ocr-console`. This executable is completely self-contained and can be copied/moved to a separate directory for running any commands (except the Tesseract command, since it's not supported on Linux).
 
 ### With Visual Studio
-TODO
+To build the .NET application with Visual Studio, first ensure you have Visual Studio with .NET 6.0 SDK installed. Next, open `subtitle-ocr-console.sln` in Visual Studio. Once loaded, right click the `subtitle-ocr-console` project (NOT the solution) in the solution explorer and click `Publish`. A window will pop up asking where you would like to publish. Click through the menu choosing `Folder` for each option so that the built executable is saved locally on disk. Click `Finish` to create the Publish profile. Once that is complete, you should see the newly created profile in the publish menu. Ensure the `Configuration` is set to `Release`. Next, click the pencil next to `Target Runtime` and change the `Deployment mode` to `Self-contained`. Also change the target runtime to win10-x64 (or whatever platform you are on, see list [here](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)). Click `Save`. As a final step, double-click the subtitle-ocr-console project (NOT the solution) in the solution explorer to open it for XML editing. Find the line referring to `RuntimeIdentifier`, uncomment it, and modify the runtime to match what you chose in the previous step. Once this is complete, click the `Publish` button in the top right of the window. You should see a green box indicating that publishing completed. Click the `Open folder` button to open the folder that the executable is contained in. This executable is completely self-contained and can be copied/moved to a separate directory for running any commands.
 
 ## Inference Usage
 After building the .NET executable, there are various sub-commands that can be run. To see detailed information, run `./subtitle-ocr-console -h`. This gives information about the various sub-commands. To see information about a specific sub-command, run `./subtitle-ocr-console <sub-command> -h`.
@@ -99,9 +99,9 @@ To quickly test inference of the model, the `test-inference` command is used. He
 where the images have already been binarized.
 
 ### Evaluating Tesseract
-To evaluate Tesseract OCR, you must be using Windows. This is due to the C# bindings not bundling the Tesseract shared libraries for any platform other than Windows. An example of that command is:
+To evaluate Tesseract OCR, you must be using Windows. This is due to the C# bindings not bundling the Tesseract shared libraries for any platform other than Windows. Furthermore, you must run the program using `dotnet run` instead of invoking the built executable directly (the C# bindings are quite bad). An example of that command is:
 ```
-./subtitle-ocr-console eval-tesseract tessdata-dir/ eng codec.json validation-dataset-dir/
+dotnet run -- eval-tesseract tessdata-dir/ eng codec.json validation-dataset-dir/
 ```
 where `tessdata-dir` is the directory to the tesseract data containing trained data for the `eng` model. These files can be obtained from the [Tesseract Data Repository](https://github.com/tesseract-ocr/tessdata).
 
