@@ -5,7 +5,11 @@ public class SRTFrame
     // Timestamps are in milliseconds
     public int StartTimestamp;
     public int EndTimestamp;
-    public string Text;
+    public string Text = "";
+
+    public SRTFrame()
+    {
+    }
 
     public SRTFrame(string text)
     {

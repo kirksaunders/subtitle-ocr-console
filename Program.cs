@@ -2,6 +2,7 @@
 using System.CommandLine.NamingConventionBinder;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -26,6 +27,15 @@ static class ProgramEntry
         pgsCommand.Add(new Argument<FileInfo>("path", "Path to PGS file").ExistingOnly());
         pgsCommand.Add(new Argument<DirectoryInfo>("out-dir", "Directory path to save images to").ExistingOnly());
         pgsCommand.Handler = CommandHandler.Create(ParsePGS);
+
+        var srtCommand = new Command("parse-srt", "Parses an SRT subtitle file and writes its lines of text to a file");
+        srtCommand.Add(new Argument<FileInfo>("path", "Path to PGS file").ExistingOnly());
+        srtCommand.Add(new Argument<FileInfo>("out-path", "File path to text to").LegalFilePathsOnly());
+        srtCommand.Add(new Option<bool>(
+            new string[] { "--strip-formatting", "-s" },
+            "Whether to strip the formatting from the SRT text (like <i></i>, etc.)"
+        ));
+        srtCommand.Handler = CommandHandler.Create(ParseSRT);
 
         var codecCommand = new Command("generate-codec", "Generates a codec");
         codecCommand.Add(new Argument<FileInfo>("out-path", "Path to save the codec to").LegalFilePathsOnly());
@@ -108,6 +118,7 @@ static class ProgramEntry
         var rootCommand = new RootCommand("Command line tool for converting PGS subtitles to SRT subtitles using OCR")
         {
             pgsCommand,
+            srtCommand,
             codecCommand,
             dataCommand,
             lmCommand,
@@ -145,6 +156,28 @@ static class ProgramEntry
         }
 
         Console.WriteLine($"Done. Files written to {outDir}");
+    }
+
+    static void ParseSRT(FileInfo path, FileInfo outPath, bool stripFormatting)
+    {
+        var srt = new SRT(path);
+
+        using (var writer = new StreamWriter(outPath.FullName))
+        {
+            foreach (var frame in srt.Frames)
+            {
+                if (stripFormatting)
+                {
+                    writer.WriteLine(Regex.Replace(frame.Text, @"\<.*?\>", ""));
+                }
+                else
+                {
+                    writer.WriteLine(frame.Text);
+                }
+            }
+        }
+
+        Console.WriteLine($"Done. File written to {outPath}");
     }
 
     static void GenerateData(int size, DirectoryInfo outDir, FileInfo codecPath,

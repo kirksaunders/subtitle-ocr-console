@@ -28,7 +28,7 @@ class CTCTrainer:
     def _validate(self):
         # Calculate loss and accuracy on validation dataset
         with torch.no_grad():
-            with tqdm(self.train_dataloader, unit="batch") as tepoch:
+            with tqdm(self.valid_dataloader, unit="batch") as tepoch:
                 tepoch.set_description(f"Epoch {self.epoch} Validation")
 
                 self.model.train(False) # Put model in inference mode
