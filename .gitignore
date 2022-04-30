@@ -1,4 +1,8 @@
 trained/
+texts/
+.vscode/
+train-data/
+valid-data/
 
 __pycache__/
 
