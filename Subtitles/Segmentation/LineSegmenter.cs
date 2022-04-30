@@ -6,8 +6,8 @@ namespace subtitle_ocr_console.Subtitles.Segmentation;
 
 public static class LineSegmenter
 {
-    private const int Stride = 3;
-    private const double UpperThreshold = 3.0;
+    private const int Stride = 1;
+    private const double UpperThreshold = 2.0;
     private const double LowerThreshold = 2.0;
     private const int MinHeight = 15;
 
