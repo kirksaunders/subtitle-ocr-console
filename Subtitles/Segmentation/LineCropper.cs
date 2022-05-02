@@ -48,6 +48,11 @@ public static class LineCropper
             }
         }
 
+        if (rightmost < leftmost)
+        {
+            rightmost = leftmost;
+        }
+
         // Do crop
         var width = rightmost - leftmost + 1;
         return line.Clone(ctx =>

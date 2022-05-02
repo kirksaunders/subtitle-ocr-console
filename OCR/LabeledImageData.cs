@@ -24,6 +24,8 @@ public class LabeledImageData
         "Cabin",
         "EBGaramond",
         "Exo",
+        "IBMPlexMono",
+        "JetBrainsMono",
         "Jost",
         "Lora",
         "Lato",
@@ -46,7 +48,8 @@ public class LabeledImageData
         "Piazzolla",
         "SourceSans3",
         "STIXTwoText",
-        "TitilliumWeb"
+        "TitilliumWeb",
+        "UbuntuMono"
     };
 
     private static FontStyle[] _fontStyles =
@@ -258,6 +261,56 @@ public class LabeledImageData
         }
 
         return fonts;
+    }
+
+    public static void TestFonts(Codec codec, DirectoryInfo outputDir)
+    {
+        var families = _trainingFontFamilies.Concat(_validationFontFamilies);
+        FontCollection collection = new();
+        foreach (string fontFamily in families)
+        {
+            foreach (FontStyle style in _fontStyles)
+            {
+                // Some fonts don't have all font styles
+                var fileInfo = new FileInfo("fonts/" + fontFamily + "/static/" + fontFamily + "-" + style.ToString() + ".ttf");
+                if (fileInfo.Exists)
+                {
+                    // Create font
+                    FontFamily family = collection.Add(fileInfo.FullName);
+                    Font font = family.CreateFont(_fontSize, style);
+                    TextOptions options = new TextOptions(font);
+
+                    // Render all of codec
+                    var builder = new StringBuilder(codec.Count);
+                    for (var i = 0; i < codec.Count; i++)
+                    {
+                        builder.Append(codec.GetCharacter(i)?.Char);
+                    }
+
+                    IPathCollection glyphs = TextBuilder.GenerateGlyphs(builder.ToString(), options);
+
+                    // Scale so height fills render area and apply some random stretching on x 
+                    var scale = (float)_targetHeight / glyphs.Bounds.Height;
+                    glyphs = glyphs.Scale(scale);
+
+                    // Translate so the text starts at leftmost and is centered vertically
+                    glyphs = glyphs.Translate(-glyphs.Bounds.X, -glyphs.Bounds.Y);
+
+                    var image = new Image<A8>(Math.Max(_minWidth, (int)Math.Ceiling(glyphs.Bounds.Width)), _targetHeight);
+                    image.Mutate(ctx =>
+                        ctx.Fill(new DrawingOptions()
+                        {
+                            ShapeOptions = new ShapeOptions()
+                            {
+                                IntersectionRule = IntersectionRule.Nonzero
+                            }
+                        }, Color.White, glyphs)
+                    );
+
+                    image.Save(outputDir.FullName + "/" + fontFamily + "_" + style + ".png");
+                }
+            }
+        }
     }
 
     public void Generate(int maxNumStrings, int maxNumCharacters, int randomStringRate,
