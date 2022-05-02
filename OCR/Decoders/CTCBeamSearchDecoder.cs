@@ -285,7 +285,7 @@ public static class CTCBeamSearchDecoder
         return 0.25f * MathF.Log(p);
     }
 
-    public static List<Tensor<int>> Decode(Tensor<float> probabilities, Tensor<Int64> lengths,
+    /* public static List<Tensor<int>> Decode(Tensor<float> probabilities, Tensor<Int64> lengths,
                                            int beamWidth, LanguageModel? languageModel = null, int blankIndex = 0)
     {
         int batchSize = probabilities.Dimensions[0];
@@ -309,8 +309,8 @@ public static class CTCBeamSearchDecoder
 
                 for (var t = 0; t < numPreds; t++)
                 {
-                    var branches = leaves.ToList();
-                    leaves.Clear();
+                    var branches = leaves.AsSpan();
+                    leaves.SwapClear();
 
                     // Move branch probabilities forward a time step
                     foreach (var b in branches)
@@ -424,9 +424,9 @@ public static class CTCBeamSearchDecoder
                 }
 
                 // Get maximum branch
-                var finalBranches = leaves.ToList();
+                var finalBranches = leaves.AsSpan();
                 BeamEntry best = finalBranches[0];
-                for (var j = 1; j < finalBranches.Count; j++)
+                for (var j = 1; j < finalBranches.Length; j++)
                 {
                     if (finalBranches[j] > best)
                     {
@@ -449,6 +449,162 @@ public static class CTCBeamSearchDecoder
         for (var i = 0; i < batchSize; i++)
         {
             outTensors.Add(tasks[i].Result);
+        }
+
+        return outTensors;
+    } */
+
+    public static List<Tensor<int>> Decode(Tensor<float> probabilities, Tensor<Int64> lengths,
+                                           int beamWidth, LanguageModel? languageModel = null, int blankIndex = 0)
+    {
+        int batchSize = probabilities.Dimensions[0];
+        int numClasses = probabilities.Dimensions[2];
+
+        var outTensors = new List<Tensor<int>>(batchSize);
+        for (var i = 0; i < batchSize; i++)
+        {
+            BeamEntry root = new(null, blankIndex);
+            root.NewP.Total = LOG_1;
+            root.NewP.Blank = LOG_1;
+
+            // Ensure leaves has been cleared since last run and add root
+            BeamList leaves = new(beamWidth);
+            leaves.Add(root);
+
+            int numPreds = (int)lengths[i, 0];
+
+            for (var t = 0; t < numPreds; t++)
+            {
+                var branches = leaves.AsSpan();
+                leaves.SwapClear();
+
+                // Move branch probabilities forward a time step
+                foreach (var b in branches)
+                {
+                    b.OldP = b.NewP;
+                }
+
+                // Extend branches without adding to label sequence
+                foreach (var b in branches)
+                {
+                    if (b.Parent != null) // if not the root
+                    {
+                        if (b.Parent.Active())
+                        {
+                            // If last two sequence characters are identical:
+                            // Plabel(l=acc @ t=6) = (Plabel(l=acc @ t=5)
+                            //                        + Pblank(l=ac @ t=5))
+                            // else:
+                            // Plabel(l=abc @ t=6) = (Plabel(l=abc @ t=5)
+                            //                        + P(l=ab @ t=5))
+                            var prev = b.Label == b.Parent.Label ? b.Parent.OldP.Blank : b.Parent.OldP.Total;
+                            if (languageModel != null)
+                            {
+                                prev += GetLanguageModelProbability(b.Parent, b, languageModel, blankIndex);
+                            }
+                            b.NewP.Label = LogAddExp(b.NewP.Label, prev);
+                        }
+
+                        // Plabel(l=abc @ t=6) *= P(c @ 6)
+                        b.NewP.Label += probabilities[i, t, b.Label];
+                    }
+
+                    // Pblank(l=abc @ t=6) = P(l=abc @ t=5) * P(- @ 6)
+                    b.NewP.Blank = b.OldP.Total + probabilities[i, t, blankIndex];
+                    // P(l=abc @ t=6) = Plabel(l=abc @ t=6) + Pblank(l=abc @ t=6)
+                    b.NewP.Total = LogAddExp(b.NewP.Blank, b.NewP.Label);
+
+                    leaves.Add(b);
+                }
+
+                // A new leaf (represented by its BeamProbability) is a candidate
+                // iff its total probability is nonzero and either the beam list
+                // isn't full, or the lowest probability entry in the beam has a
+                // lower probability than the leaf.
+                var isCandidate = (BeamEntry.Probability prob) => prob.Total > LOG_0 &&
+                                        (leaves.Count < beamWidth || prob.Total > leaves.GetMinimum().NewP.Total);
+
+                // Grow new leaves (extending label sequence)
+                foreach (var b in branches)
+                {
+                    if (!isCandidate(b.OldP))
+                    {
+                        continue;
+                    }
+
+                    for (var label = 0; label < numClasses; label++)
+                    {
+                        // Blank character case already handled above
+                        if (label == blankIndex)
+                        {
+                            continue;
+                        }
+
+                        var logit = probabilities[i, t, label];
+
+                        if (logit <= LOG_0)
+                        {
+                            continue;
+                        }
+
+                        var c = b.GetChild(label);
+                        if (!c.Active())
+                        {
+                            // Pblank(l=abcd @ t=6) = 0
+                            c.NewP.Blank = LOG_0;
+
+                            // If new child label is identical to beam label:
+                            //   Plabel(l=abcc @ t=6) = Pblank(l=abc @ t=5) * P(c @ 6)
+                            // Otherwise:
+                            //   Plabel(l=abcd @ t=6) = P(l=abc @ t=5) * P(d @ 6)
+                            // TODO: Language model here?
+                            var prev = b.Label == c.Label ? b.OldP.Blank : b.OldP.Total;
+                            if (languageModel != null)
+                            {
+                                prev += GetLanguageModelProbability(b, c, languageModel, blankIndex);
+                            }
+                            c.NewP.Label = logit + prev;
+
+                            // P(l=abcd @ t=6) = Plabel(l=abcd @ t=6)
+                            c.NewP.Total = c.NewP.Label;
+
+                            // Only insert leaf if c is better than current minimum or leaves is not full
+                            if (isCandidate(c.NewP))
+                            {
+                                BeamEntry? removed = leaves.Add(c);
+                                if (removed != null)
+                                {
+                                    removed.OldP.Reset();
+                                    removed.NewP.Reset();
+                                }
+                            }
+                            else
+                            {
+                                // Deactivate child
+                                c.OldP.Reset();
+                                c.NewP.Reset();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Get maximum branch
+            var finalBranches = leaves.AsSpan();
+            BeamEntry best = finalBranches[0];
+            for (var j = 1; j < finalBranches.Length; j++)
+            {
+                if (finalBranches[j] > best)
+                {
+                    best = finalBranches[j];
+                }
+            }
+
+            // Turn branch sequence into tensor
+            var seq = best.LabelSequence();
+            var outTensor = new DenseTensor<int>(new Memory<int>(seq.ToArray()), new int[] { seq.Count });
+
+            outTensors.Add(outTensor);
         }
 
         return outTensors;

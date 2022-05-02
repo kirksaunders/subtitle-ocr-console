@@ -402,7 +402,7 @@ static class ProgramEntry
         Console.WriteLine($"Character error rate: {characterErrorRate}");
     }
 
-    static void ConvertPGS(FileInfo pgsPath, FileInfo srtPath, string modelStr)
+    static async Task ConvertPGS(FileInfo pgsPath, FileInfo srtPath, string modelStr)
     {
         // Load model from executable assembly
         var assembly = Assembly.GetExecutingAssembly();
@@ -448,14 +448,13 @@ static class ProgramEntry
         }
 
         // Convert file and display progress bar
-        SRT srt = new();
-        SRTFrame? lastFrame = null;
+        BoundedTaskScheduler taskScheduler = new(32);
+        List<(PGSFrame, Task<List<string>>)> results = new();
         using (var bar = new ProgressBar(10000, "Converting PGS to SRT..."))
         {
             var progressReporter = bar.AsProgress<double>();
             foreach ((var frame, var progress) in pgsReader.GetFramesWithProgress())
             {
-                var text = new StringBuilder();
                 foreach (var img in frame.Images)
                 {
                     var binarized = ImageBinarizer.Binarize(img.Img, 0.5);
@@ -467,29 +466,39 @@ static class ProgramEntry
                         line.Mutate(ctx => ctx.Resize(0, 32));
                     }
 
-                    var strings = model.Infer(lines, langModel);
-                    foreach (var str in strings)
-                    {
-                        if (text.Length > 0)
-                        {
-                            text.Append('\n');
-                        }
-                        text.Append(str);
-                    }
+                    var task = new Task<List<string>>(() => model.Infer(lines, langModel));
+                    await taskScheduler.Schedule(task);
+                    results.Add((frame, task));
                 }
-
-                if (lastFrame != null && lastFrame.Text.Length > 0)
-                {
-                    lastFrame.EndTimestamp = frame.Timestamp;
-                    srt.AddFrame(lastFrame);
-                }
-
-                lastFrame = new SRTFrame(frame.Timestamp, text.ToString());
 
                 // Update progress bar
                 progressReporter.Report(progress);
             }
             progressReporter.Report(1.0);
+        }
+
+        SRT srt = new();
+        SRTFrame? lastFrame = null;
+        foreach ((var frame, var task) in results)
+        {
+            var strings = await task;
+            var text = new StringBuilder();
+            foreach (var str in strings)
+            {
+                if (text.Length > 0)
+                {
+                    text.Append('\n');
+                }
+                text.Append(str);
+            }
+
+            if (lastFrame != null && lastFrame.Text.Length > 0)
+            {
+                lastFrame.EndTimestamp = frame.Timestamp;
+                srt.AddFrame(lastFrame);
+            }
+
+            lastFrame = new SRTFrame(frame.Timestamp, text.ToString());
         }
 
         srt.Write(srtPath);
