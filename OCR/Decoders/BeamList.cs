@@ -3,6 +3,7 @@ namespace subtitle_ocr_console.OCR.Decoders;
 public class BeamList
 {
     private BeamEntry[] _data;
+    private BeamEntry[] _dataSwap;
     private int _capacity;
     private int _size = 0;
 
@@ -11,6 +12,7 @@ public class BeamList
     public BeamList(int capacity)
     {
         _data = new BeamEntry[capacity];
+        _dataSwap = new BeamEntry[capacity];
         _capacity = capacity;
     }
 
@@ -36,9 +38,20 @@ public class BeamList
         }
     }
 
+    public ReadOnlySpan<BeamEntry> AsSpan()
+    {
+        return _data.AsSpan().Slice(0, _size);
+    }
+
     public void Clear()
     {
         _size = 0;
+    }
+
+    public void SwapClear()
+    {
+        _size = 0;
+        (_data, _dataSwap) = (_dataSwap, _data);
     }
 
     public BeamEntry GetMinimum()
@@ -77,7 +90,7 @@ public class BeamList
         while (idx < _size)
         {
             int left = 2 * idx + 1;
-            int right = left + 2;
+            int right = left + 1;
 
             // Get child with smaller value
             int child;

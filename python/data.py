@@ -62,7 +62,7 @@ class TextDataset(torch.utils.data.Dataset):
         if self.augmentation:
             img = annotation["LoadedImage"]
             size = img.size()
-            rand_resize = 0.85 + torch.rand(1) * 0.55
+            rand_resize = 0.85 + torch.rand(1) * 0.30
             width = int(size[1] * rand_resize + 0.5)
             out_img = torchvision.transforms.Resize((width, size[2]))(img)
             out_img = self.rand_translate(out_img)
