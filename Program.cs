@@ -66,6 +66,11 @@ static class ProgramEntry
         ));
         dataCommand.Handler = CommandHandler.Create(GenerateData);
 
+        var fontCommand = new Command("test-fonts", "Generates images of the entire codec in each font to verify rendering works correctly");
+        fontCommand.Add(new Argument<DirectoryInfo>("out-dir", "Directory path to save images to").ExistingOnly());
+        fontCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
+        fontCommand.Handler = CommandHandler.Create(TestFonts);
+
         var lmCommand = new Command("generate-lm", "Generates a language model");
         lmCommand.Add(new Argument<FileInfo>("out-path", "Path to save the language model to").LegalFilePathsOnly());
         lmCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
@@ -121,6 +126,7 @@ static class ProgramEntry
             srtCommand,
             codecCommand,
             dataCommand,
+            fontCommand,
             lmCommand,
             inferCommand,
             evalModelCommand,
@@ -207,6 +213,14 @@ static class ProgramEntry
         data.Generate(size, maxChars, randRate, validation, lineData, outDir);
 
         Console.WriteLine($"Done. Data written to {outDir}");
+    }
+
+    static void TestFonts(DirectoryInfo outDir, FileInfo codecPath)
+    {
+        var codec = new Codec(codecPath);
+        LabeledImageData.TestFonts(codec, outDir);
+
+        Console.WriteLine($"Done. Images written to {outDir}");
     }
 
     static void GenerateCodec(FileInfo outPath, string letterCharacters, string digitCharacters,

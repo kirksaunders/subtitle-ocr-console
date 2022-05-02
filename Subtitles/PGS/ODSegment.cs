@@ -62,6 +62,8 @@ class ODSegment : Segment
                 Width = reader.ReadUInt16();
                 Height = reader.ReadUInt16();
 
+                _pixels.EnsureCapacity(Width * Height);
+
                 bytesRead += 7;
             }
 
@@ -101,7 +103,7 @@ class ODSegment : Segment
                         var third = reader.ReadByte();
                         bytesRead += 1;
 
-                        var numPixels = ((uint)(second & 0x3F) << 8) | third;
+                        var numPixels = ((int)(second & 0x3F) << 8) + third;
 
                         for (int i = 0; i < numPixels; i++)
                         {
@@ -126,13 +128,17 @@ class ODSegment : Segment
                         var fourth = reader.ReadByte();
                         bytesRead += 2;
 
-                        var numPixels = ((uint)(second & 0x3F) << 8) | third;
+                        var numPixels = ((int)(second & 0x3F) << 8) + third;
 
                         for (int i = 0; i < numPixels; i++)
                         {
                             _pixels.Add(fourth);
                         }
                     }
+                }
+                else
+                {
+                    // TODO: End of line?
                 }
             }
             else

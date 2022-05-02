@@ -43,7 +43,7 @@ class PGSState
 
     private List<CompositionObject> _compositionObjects = new();
     private List<WritableImage> _objects = new();
-    private List<List<Rgba32>> _palettes = new();
+    private List<Rgba32[]> _palettes = new();
     private List<WindowDefinition> _windows = new();
 
     private int _displayWidth;
@@ -110,15 +110,12 @@ class PGSState
 
         foreach (var pixel in segment.Pixels)
         {
-            if (pixel >= _palettes[_currentPalette].Count)
+            if (pixel >= _palettes[_currentPalette].Length)
             {
-                // TODO: Determine whether we need to throw or write transparent pixel
-                image.WritePixel(new Rgba32(0, 0, 0, 0));
+                throw new PGSStateException("Tried to write color outside palette range");
             }
-            else
-            {
-                image.WritePixel(_palettes[_currentPalette][pixel]);
-            }
+
+            image.WritePixel(_palettes[_currentPalette][pixel]);
         }
     }
 
@@ -131,16 +128,21 @@ class PGSState
         }*/
         while (segment.PaletteID >= _palettes.Count)
         {
-            _palettes.Add(new());
+            _palettes.Add(new Rgba32[256]);
         }
 
         var palette = _palettes[segment.PaletteID];
-        palette.Clear();
-        palette.EnsureCapacity(segment.Entries.Count);
+
+        // Make all palette entries transparent
+        for (var i = 0; i < palette.Length; i++)
+        {
+            palette[i] = new Rgba32(0, 0, 0, 0);
+        }
 
         foreach (var entry in segment.Entries)
         {
-            palette.Add(entry.AsRGBA());
+            // Note: Since EntryID is a byte, it can't be outside range of palette array
+            palette[entry.EntryID] = entry.AsRGBA();
         }
     }
 
@@ -187,7 +189,7 @@ class PGSState
             _currentPalette = segment.PaletteID;
         }
 
-        // Calculate timestamp (in seconds)
+        // Calculate timestamp (in milliseconds)
         _timestamp = (int)segment.Header.PresentationTimestamp / 90;
     }
 
