@@ -8,10 +8,12 @@
     <Nullable>enable</Nullable>
     <PublishSingleFile Condition="'$(Configuration)' == 'Release'">true</PublishSingleFile>
     <RootNamespace>subtitle_ocr_console</RootNamespace>
-	<!-- Change the runtime identifier to your platform -->
+    <!-- Change the runtime identifier to your platform -->
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
     <SelfContained Condition="'$(Configuration)' == 'Release'">true</SelfContained>
-	<ServerGarbageCollection>true</ServerGarbageCollection>
+    <!-- The below line improves performance at the cost of higher memory usage. On windows, the
+         memory usage different is around 2x, but on Linux it's much more. -->
+    <!-- <ServerGarbageCollection>true</ServerGarbageCollection> -->
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 

@@ -463,27 +463,33 @@ static class ProgramEntry
 
         // Convert file and display progress bar
         BoundedTaskScheduler taskScheduler = new(32);
-        List<(int, Task<List<string>>)> results = new();
+        List<(int, int, Task<List<string>>)> results = new();
         using (var bar = new ProgressBar(10000, "Converting PGS to SRT..."))
         {
             var progressReporter = bar.AsProgress<double>();
+            PGSFrame? lastFrame = null;
             foreach ((var frame, var progress) in pgsReader.GetFramesWithProgress())
             {
-                foreach (var img in frame.Images)
+                if (lastFrame != null)
                 {
-                    var binarized = ImageBinarizer.Binarize(img.Img, 0.5);
-                    var lines = LineSegmenter.Segment(binarized);
-
-                    // Ensure images are the proper height
-                    foreach (var line in lines)
+                    foreach (var img in lastFrame.Images)
                     {
-                        line.Mutate(ctx => ctx.Resize(0, 32));
-                    }
+                        var binarized = ImageBinarizer.Binarize(img.Img, 0.5);
+                        var lines = LineSegmenter.Segment(binarized);
 
-                    var task = new Task<List<string>>(() => model.Infer(lines, langModel));
-                    await taskScheduler.Schedule(task);
-                    results.Add((frame.Timestamp, task));
+                        // Ensure images are the proper height
+                        foreach (var line in lines)
+                        {
+                            line.Mutate(ctx => ctx.Resize(0, 32));
+                        }
+
+                        var task = new Task<List<string>>(() => model.Infer(lines, langModel));
+                        await taskScheduler.Schedule(task);
+                        results.Add((lastFrame.Timestamp, frame.Timestamp, task));
+                    }
                 }
+
+                lastFrame = frame;
 
                 // Update progress bar
                 progressReporter.Report(progress);
@@ -492,8 +498,7 @@ static class ProgramEntry
         }
 
         SRT srt = new();
-        SRTFrame? lastFrame = null;
-        foreach ((var timestamp, var task) in results)
+        foreach ((var start, var end, var task) in results)
         {
             var strings = await task;
             var text = new StringBuilder();
@@ -506,13 +511,10 @@ static class ProgramEntry
                 text.Append(str);
             }
 
-            if (lastFrame != null && lastFrame.Text.Length > 0)
+            if (text.Length > 0)
             {
-                lastFrame.EndTimestamp = timestamp;
-                srt.AddFrame(lastFrame);
+                srt.AddFrame(new SRTFrame(start, end, text.ToString()));
             }
-
-            lastFrame = new SRTFrame(timestamp, text.ToString());
         }
 
         srt.Write(srtPath);
