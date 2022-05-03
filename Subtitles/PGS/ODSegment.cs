@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace subtitle_ocr_console.Subtitles.PGS;
 
@@ -17,8 +17,7 @@ class ODSegment : Segment
     public ushort Width { get; private set; }
     public ushort Height { get; private set; }
     public uint DataLength { get; private set; } // One byte wasted (spec has this as 3 bytes)
-    private List<byte> _pixels = new();
-    public ReadOnlyCollection<byte> Pixels => _pixels.AsReadOnly();
+    public byte[] RLEData;
 
     public ODSegment(SegmentHeader header, BinaryReader reader)
         : base(header)
@@ -26,6 +25,8 @@ class ODSegment : Segment
         InitializeFromBinary(reader);
     }
 
+    // This annotation are here to suppress a warning by saying "this function defines this field"
+    [MemberNotNull(nameof(RLEData))]
     private void InitializeFromBinary(BinaryReader reader)
     {
         try
@@ -35,23 +36,13 @@ class ODSegment : Segment
 
             byte flag = reader.ReadByte();
 
-            switch (flag)
+            Last = flag switch
             {
-                case 0x40:
-                    Last = LastInSequence.Last;
-                    break;
-
-                case 0x80:
-                    Last = LastInSequence.First;
-                    break;
-
-                case 0xC0:
-                    Last = LastInSequence.Both;
-                    break;
-
-                default:
-                    throw new PGSReadException($"Unknown last in sequence flag: {flag}");
-            }
+                0x40 => LastInSequence.Last,
+                0x80 => LastInSequence.First,
+                0xC0 => LastInSequence.Both,
+                _ => throw new PGSReadException($"Unknown last in sequence flag: {flag}"),
+            };
 
             int bytesRead = 4;
             if (Last == LastInSequence.First || Last == LastInSequence.Both)
@@ -62,89 +53,16 @@ class ODSegment : Segment
                 Width = reader.ReadUInt16();
                 Height = reader.ReadUInt16();
 
-                _pixels.EnsureCapacity(Width * Height);
-
                 bytesRead += 7;
             }
 
-            InitializePixels(reader, bytesRead);
+            var numBytes = Header.Size - bytesRead;
+            RLEData = reader.ReadBytes(numBytes);
+            bytesRead += numBytes;
         }
         catch (Exception ex) when (ex is not PGSReadException)
         {
             throw new PGSReadException("Internal exception when reading OD segment", ex);
-        }
-    }
-
-    private void InitializePixels(BinaryReader reader, int bytesRead)
-    {
-        while ((Header.Size - bytesRead) > 0)
-        {
-            var first = reader.ReadByte();
-            bytesRead += 1;
-
-            if (first == 0)
-            {
-                var second = reader.ReadByte();
-                bytesRead += 1;
-
-                if (second != 0)
-                {
-                    var mode = 0xC0 & second;
-
-                    if (mode == 0x00)
-                    {
-                        for (int i = 0; i < second; i++)
-                        {
-                            _pixels.Add(0);
-                        }
-                    }
-                    else if (mode == 0x40)
-                    {
-                        var third = reader.ReadByte();
-                        bytesRead += 1;
-
-                        var numPixels = ((int)(second & 0x3F) << 8) + third;
-
-                        for (int i = 0; i < numPixels; i++)
-                        {
-                            _pixels.Add(0);
-                        }
-                    }
-                    else if (mode == 0x80)
-                    {
-                        var third = reader.ReadByte();
-                        bytesRead += 1;
-
-                        var numPixels = second & 0x3F;
-
-                        for (int i = 0; i < numPixels; i++)
-                        {
-                            _pixels.Add(third);
-                        }
-                    }
-                    else if (mode == 0xC0)
-                    {
-                        var third = reader.ReadByte();
-                        var fourth = reader.ReadByte();
-                        bytesRead += 2;
-
-                        var numPixels = ((int)(second & 0x3F) << 8) + third;
-
-                        for (int i = 0; i < numPixels; i++)
-                        {
-                            _pixels.Add(fourth);
-                        }
-                    }
-                }
-                else
-                {
-                    // TODO: End of line?
-                }
-            }
-            else
-            {
-                _pixels.Add(first);
-            }
         }
     }
 }

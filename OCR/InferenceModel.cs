@@ -13,10 +13,10 @@ namespace subtitle_ocr_console.OCR;
 public class InferenceModel
 {
     public Codec _codec;
-    private InferenceSession _session;
+    private readonly InferenceSession _session;
 
     // TODO: Make this its own class so it can be saved/loaded to/from file
-    private List<(int, int, float)> _simMatrix = new();
+    private readonly List<(int, int, float)> _simMatrix = new();
 
     public InferenceModel(Codec codec, FileInfo savePath)
     {
@@ -127,7 +127,8 @@ public class InferenceModel
             var builder = new StringBuilder(seq.Dimensions[0]);
             for (var i = 0; i < seq.Dimensions[0]; i++)
             {
-                CodecCharacter character = _codec.GetCharacter((int)seq[i] - 1) ?? throw new ArgumentNullException("Index out of range for codec");
+                CodecCharacter character = _codec.GetCharacter(seq[i] - 1)
+                                           ?? throw new ArgumentNullException("Index out of range for codec");
                 builder.Append(character.Char);
             }
             strings.Add(builder.ToString());

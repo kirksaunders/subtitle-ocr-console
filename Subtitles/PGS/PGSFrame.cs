@@ -26,7 +26,7 @@ public class PGSFrame
     public List<PGSImage> _images;
     public ReadOnlyCollection<PGSImage> Images { get { return _images.AsReadOnly(); } }
 
-    private static IComparer<PGSImage> _imageComparer = Comparer<PGSImage>.Create((x, y) => x.YPos.CompareTo(y.YPos));
+    private static readonly IComparer<PGSImage> _imageComparer = Comparer<PGSImage>.Create((x, y) => x.YPos.CompareTo(y.YPos));
 
     public PGSFrame()
     {

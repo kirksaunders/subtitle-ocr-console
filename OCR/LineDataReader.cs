@@ -4,7 +4,7 @@ namespace subtitle_ocr_console.OCR;
 
 public static class LineDataReader
 {
-    private static IEnumerable<char> ReadChars(Codec codec, string line)
+    private static IEnumerable<char> ReadChars(string line)
     {
         foreach (char c in line.ToCharArray())
         {
@@ -34,9 +34,9 @@ public static class LineDataReader
         {
             var str = new StringBuilder(line.Length);
             int spaceCount = 0;
-            foreach (char c in ReadChars(codec, line))
+            foreach (char c in ReadChars(line))
             {
-                if (Char.IsWhiteSpace(c))
+                if (char.IsWhiteSpace(c))
                 {
                     if (str.Length > 0)
                     {

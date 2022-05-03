@@ -12,13 +12,13 @@ namespace subtitle_ocr_console.OCR;
 
 public class LabeledImageData
 {
-    private static int _targetHeight = 32;
-    private static int _minWidth = 4;
-    private static int _fontSize = 48;
+    private const int _targetHeight = 32;
+    private const int _minWidth = 4;
+    private const int _fontSize = 48;
 
     // NOTE: Some fonts have their italic forms disabled (by changing their file extension)
     //       because ImageSharp doesn't render them correctly.
-    private static string[] _trainingFontFamilies =
+    private static readonly string[] _trainingFontFamilies =
     {
         "Bitter",
         "Cabin",
@@ -39,7 +39,7 @@ public class LabeledImageData
         "Yrsa"
     };
 
-    private static string[] _validationFontFamilies =
+    private static readonly string[] _validationFontFamilies =
     {
         "Besley",
         "LibreFranklin",
@@ -52,7 +52,7 @@ public class LabeledImageData
         "UbuntuMono"
     };
 
-    private static FontStyle[] _fontStyles =
+    private static readonly FontStyle[] _fontStyles =
     {
         FontStyle.Regular,
         FontStyle.Bold,
@@ -75,7 +75,7 @@ public class LabeledImageData
     public string ImageExtension { get; } = ".png";
     public List<Line> Lines { get; } = new();
 
-    private Codec _codec;
+    private readonly Codec _codec;
     private DirectoryInfo? _directory;
 
     public class SerializableData
@@ -157,7 +157,8 @@ public class LabeledImageData
             do
             {
                 int charIndex = randomGenerator.Next(_codec.Count);
-                character = _codec.GetCharacter(charIndex) ?? throw new ArgumentNullException("This code should be unreachable");
+                character = _codec.GetCharacter(charIndex)
+                            ?? throw new ArgumentNullException("This code should be unreachable");
             } while ((j == 0 || j == numChars - 1) && character.Type == CodecCharacterType.Whitespace);
 
             builder.Append(character.Char);
@@ -236,7 +237,7 @@ public class LabeledImageData
         }
     }
 
-    private List<TextOptions> GenerateFonts(bool validation)
+    private static List<TextOptions> GenerateFonts(bool validation)
     {
         var families = validation ? _validationFontFamilies : _trainingFontFamilies;
         List<TextOptions> fonts = new();
@@ -253,7 +254,7 @@ public class LabeledImageData
                     // Create font
                     FontFamily family = collection.Add(fileInfo.FullName);
                     Font font = family.CreateFont(_fontSize, style);
-                    TextOptions options = new TextOptions(font);
+                    TextOptions options = new(font);
 
                     fonts.Add(options);
                 }
@@ -278,7 +279,7 @@ public class LabeledImageData
                     // Create font
                     FontFamily family = collection.Add(fileInfo.FullName);
                     Font font = family.CreateFont(_fontSize, style);
-                    TextOptions options = new TextOptions(font);
+                    TextOptions options = new(font);
 
                     // Render all of codec
                     var builder = new StringBuilder(codec.Count);

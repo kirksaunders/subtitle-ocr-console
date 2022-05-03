@@ -14,7 +14,7 @@ public class LanguageModel
     private double[][] _secondCharProbs;
     private double[][] _secondCharCumulativeProbs;
 
-    private Codec _codec;
+    private readonly Codec _codec;
 
     public LanguageModel(Codec codec, IEnumerable<FileInfo> lineDataPaths)
     {
@@ -192,7 +192,7 @@ public class LanguageModel
         return _secondCharProbs[firstCharIndex][secondCharIndex];
     }
 
-    private static Random randomGenerator = new();
+    private static readonly Random randomGenerator = new();
 
     private static int SampleDistribution(double[] distribution)
     {

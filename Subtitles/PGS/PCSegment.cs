@@ -19,7 +19,7 @@ class PCSegment : Segment
     public bool PaletteUpdate { get; private set; }
     public byte PaletteID { get; private set; }
     public byte NumberObjects { get; private set; }
-    private List<CompositionObject> _compositionObjects = new();
+    private readonly List<CompositionObject> _compositionObjects = new();
     public ReadOnlyCollection<CompositionObject> CompositionObjects => _compositionObjects.AsReadOnly();
 
     public PCSegment(SegmentHeader header, BinaryReader reader)
@@ -38,41 +38,21 @@ class PCSegment : Segment
             CompositionNumber = reader.ReadUInt16();
 
             byte type = reader.ReadByte();
-
-            switch (type)
+            Type = type switch
             {
-                case 0x00:
-                    Type = CompositionType.Normal;
-                    break;
-
-                case 0x40:
-                    Type = CompositionType.AcquisitionPoint;
-                    break;
-
-                case 0x80:
-                    Type = CompositionType.EpochStart;
-                    break;
-
-                default:
-                    throw new PGSReadException($"Unknown composition type: {type}");
-            }
+                0x00 => CompositionType.Normal,
+                0x40 => CompositionType.AcquisitionPoint,
+                0x80 => CompositionType.EpochStart,
+                _ => throw new PGSReadException($"Unknown composition type: {type}"),
+            };
 
             byte flag = reader.ReadByte();
-
-            switch (flag)
+            PaletteUpdate = flag switch
             {
-                case 0x00:
-                    PaletteUpdate = false;
-                    break;
-
-                case 0x80:
-                    PaletteUpdate = true;
-                    break;
-
-                default:
-                    throw new PGSReadException($"Unknown palette update flag: {flag}");
-            }
-
+                0x00 => false,
+                0x80 => true,
+                _ => throw new PGSReadException($"Unknown palette update flag: {flag}"),
+            };
             PaletteID = reader.ReadByte();
             NumberObjects = reader.ReadByte();
 

@@ -3,7 +3,7 @@ namespace subtitle_ocr_console.Subtitles.PGS;
 // TODO: Rename PGSReader to something more appropriate like PGS or PGSSubtitle or something
 public class PGSReader
 {
-    private List<Segment> _segments = new();
+    private readonly List<Segment> _segments = new();
 
     public PGSReader(BinaryReader reader)
     {
@@ -15,33 +15,15 @@ public class PGSReader
         while (reader.BaseStream.Position != reader.BaseStream.Length)
         {
             var header = new SegmentHeader(reader);
-
-            Segment segment;
-            switch (header.Type)
+            Segment segment = header.Type switch
             {
-                case SegmentHeader.SegmentType.PDS:
-                    segment = new PDSegment(header, reader);
-                    break;
-
-                case SegmentHeader.SegmentType.ODS:
-                    segment = new ODSegment(header, reader);
-                    break;
-
-                case SegmentHeader.SegmentType.PCS:
-                    segment = new PCSegment(header, reader);
-                    break;
-
-                case SegmentHeader.SegmentType.WDS:
-                    segment = new WDSegment(header, reader);
-                    break;
-
-                case SegmentHeader.SegmentType.END:
-                    segment = new EndSegment(header, reader);
-                    break;
-
-                default:
-                    throw new InvalidOperationException("Unreachable code");
-            }
+                SegmentHeader.SegmentType.PDS => new PDSegment(header, reader),
+                SegmentHeader.SegmentType.ODS => new ODSegment(header, reader),
+                SegmentHeader.SegmentType.PCS => new PCSegment(header, reader),
+                SegmentHeader.SegmentType.WDS => new WDSegment(header, reader),
+                SegmentHeader.SegmentType.END => new EndSegment(header, reader),
+                _ => throw new InvalidOperationException("Unreachable code"),
+            };
 
             _segments.Add(segment);
         }

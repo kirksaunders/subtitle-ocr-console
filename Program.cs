@@ -23,101 +23,121 @@ static class ProgramEntry
     static void Main(string[] args)
     {
         // Create command line argument parsers
-        var pgsCommand = new Command("parse-pgs", "Parses a PGS subtitle file and writes its images");
-        pgsCommand.Add(new Argument<FileInfo>("path", "Path to PGS file").ExistingOnly());
-        pgsCommand.Add(new Argument<DirectoryInfo>("out-dir", "Directory path to save images to").ExistingOnly());
+        var pgsCommand = new Command("parse-pgs", "Parses a PGS subtitle file and writes its images")
+        {
+            new Argument<FileInfo>("path", "Path to PGS file").ExistingOnly(),
+            new Argument<DirectoryInfo>("out-dir", "Directory path to save images to").ExistingOnly()
+        };
         pgsCommand.Handler = CommandHandler.Create(ParsePGS);
 
-        var srtCommand = new Command("parse-srt", "Parses an SRT subtitle file and writes its lines of text to a file");
-        srtCommand.Add(new Argument<FileInfo>("path", "Path to PGS file").ExistingOnly());
-        srtCommand.Add(new Argument<FileInfo>("out-path", "File path to text to").LegalFilePathsOnly());
-        srtCommand.Add(new Option<bool>(
-            new string[] { "--strip-formatting", "-s" },
-            "Whether to strip the formatting from the SRT text (like <i></i>, etc.)"
-        ));
+        var srtCommand = new Command("parse-srt", "Parses an SRT subtitle file and writes its lines of text to a file")
+        {
+            new Argument<FileInfo>("path", "Path to PGS file").ExistingOnly(),
+            new Argument<FileInfo>("out-path", "File path to text to").LegalFilePathsOnly(),
+            new Option<bool>(
+                new string[] { "--strip-formatting", "-s" },
+                "Whether to strip the formatting from the SRT text (like <i></i>, etc.)"
+            )
+        };
         srtCommand.Handler = CommandHandler.Create(ParseSRT);
 
-        var codecCommand = new Command("generate-codec", "Generates a codec");
-        codecCommand.Add(new Argument<FileInfo>("out-path", "Path to save the codec to").LegalFilePathsOnly());
-        codecCommand.Add(new Argument<string>("letter-characters", "A single string containing all letters in codec"));
-        codecCommand.Add(new Argument<string>("digit-characters", "A single string containing all digits in codec"));
-        codecCommand.Add(new Argument<string>("punctuation-characters", "A single string containing all punctuation characters in codec"));
-        codecCommand.Add(new Argument<string>("whitespace-characters", "A single string containing all whitespace characters in codec"));
+        var codecCommand = new Command("generate-codec", "Generates a codec")
+        {
+            new Argument<FileInfo>("out-path", "Path to save the codec to").LegalFilePathsOnly(),
+            new Argument<string>("letter-characters", "A single string containing all letters in codec"),
+            new Argument<string>("digit-characters", "A single string containing all digits in codec"),
+            new Argument<string>("punctuation-characters", "A single string containing all punctuation characters in codec"),
+            new Argument<string>("whitespace-characters", "A single string containing all whitespace characters in codec")
+        };
         codecCommand.Handler = CommandHandler.Create(GenerateCodec);
 
-        var dataCommand = new Command("generate-data", "Generates training/validation data for the CRNN model");
-        dataCommand.Add(new Argument<int>("size", "Size of the data set (number of images)"));
-        dataCommand.Add(new Argument<DirectoryInfo>("out-dir", "Directory path to save data to").ExistingOnly());
-        dataCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
-        dataCommand.Add(new Argument<FileInfo[]>("line-data", "Paths to files containing line data text").ExistingOnly());
-        dataCommand.Add(new Option<int>(
-            new string[] { "--max-chars", "-c" },
-            () => 75,
-            "Max number of characters (roughly) per image"
-        ));
-        dataCommand.Add(new Option<int>(
-            new string[] { "--rand-rate", "-r" },
-            () => 4,
-            "Rate of random images. One random image for each <rand-rate> images from text data, or -1 for no random images"
-        ));
-        dataCommand.Add(new Option<bool>(
-            new string[] { "--validation", "-v" },
-            "Whether to generate validation or training data. Validation data uses different fonts and no data augmentation"
-        ));
+        var dataCommand = new Command("generate-data", "Generates training/validation data for the CRNN model")
+        {
+            new Argument<int>("size", "Size of the data set (number of images)"),
+            new Argument<DirectoryInfo>("out-dir", "Directory path to save data to").ExistingOnly(),
+            new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly(),
+            new Argument<FileInfo[]>("line-data", "Paths to files containing line data text").ExistingOnly(),
+            new Option<int>(
+                new string[] { "--max-chars", "-c" },
+                () => 75,
+                "Max number of characters (roughly) per image"
+            ),
+            new Option<int>(
+                new string[] { "--rand-rate", "-r" },
+                () => 4,
+                "Rate of random images. One random image for each <rand-rate> images from text data, or -1 for no random images"
+            ),
+            new Option<bool>(
+                new string[] { "--validation", "-v" },
+                "Whether to generate validation or training data. Validation data uses different fonts and no data augmentation"
+            )
+        };
         dataCommand.Handler = CommandHandler.Create(GenerateData);
 
-        var fontCommand = new Command("test-fonts", "Generates images of the entire codec in each font to verify rendering works correctly");
-        fontCommand.Add(new Argument<DirectoryInfo>("out-dir", "Directory path to save images to").ExistingOnly());
-        fontCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
+        var fontCommand = new Command("test-fonts", "Generates images of the entire codec in each font to verify rendering works correctly")
+        {
+            new Argument<DirectoryInfo>("out-dir", "Directory path to save images to").ExistingOnly(),
+            new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly()
+        };
         fontCommand.Handler = CommandHandler.Create(TestFonts);
 
-        var lmCommand = new Command("generate-lm", "Generates a language model");
-        lmCommand.Add(new Argument<FileInfo>("out-path", "Path to save the language model to").LegalFilePathsOnly());
-        lmCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
-        lmCommand.Add(new Argument<FileInfo[]>("line-data", "Paths to files containing line data text").ExistingOnly());
+        var lmCommand = new Command("generate-lm", "Generates a language model")
+        {
+            new Argument<FileInfo>("out-path", "Path to save the language model to").LegalFilePathsOnly(),
+            new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly(),
+            new Argument<FileInfo[]>("line-data", "Paths to files containing line data text").ExistingOnly()
+        };
         lmCommand.Handler = CommandHandler.Create(GenerateLanguageModel);
 
-        var inferCommand = new Command("test-inference", "Runs a trained model on the given images");
-        inferCommand.Add(new Argument<FileInfo>("model-path", "Path to the trained model").ExistingOnly());
-        inferCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
-        inferCommand.Add(new Argument<FileInfo[]>("image-paths", "Paths to images to recognize").ExistingOnly());
-        inferCommand.Add(new Option<FileInfo>(
-            new string[] { "--language-model", "-lm" },
-            "Path to the language model").ExistingOnly()
-        );
+        var inferCommand = new Command("test-inference", "Runs a trained model on the given images")
+        {
+            new Argument<FileInfo>("model-path", "Path to the trained model").ExistingOnly(),
+            new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly(),
+            new Argument<FileInfo[]>("image-paths", "Paths to images to recognize").ExistingOnly(),
+            new Option<FileInfo>(
+                new string[] { "--language-model", "-lm" },
+                "Path to the language model"
+            ).ExistingOnly()
+        };
         inferCommand.Handler = CommandHandler.Create(TestInference);
 
-        var evalModelCommand = new Command("eval-model", "Evaluates the performance of a model on the given dataset");
-        evalModelCommand.Add(new Argument<FileInfo>("model-path", "Path to the trained model").ExistingOnly());
-        evalModelCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
-        evalModelCommand.Add(new Argument<DirectoryInfo>("data-dir", "Path of directory containing the dataset").ExistingOnly());
-        evalModelCommand.Add(new Option<FileInfo>(
-            new string[] { "--language-model", "-lm" },
-            "Path to the language model").ExistingOnly()
-        );
-        evalModelCommand.Add(new Option<int>(
-            new string[] { "--skip", "-s" },
-            () => -1,
-            "Used to skip random images. For example, if rand-rate was 5 when generating the data, supply 5 here")
-        );
+        var evalModelCommand = new Command("eval-model", "Evaluates the performance of a model on the given dataset")
+        {
+            new Argument<FileInfo>("model-path", "Path to the trained model").ExistingOnly(),
+            new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly(),
+            new Argument<DirectoryInfo>("data-dir", "Path of directory containing the dataset").ExistingOnly(),
+            new Option<FileInfo>(
+                new string[] { "--language-model", "-lm" },
+                "Path to the language model"
+            ).ExistingOnly(),
+            new Option<int>(
+                new string[] { "--skip", "-s" },
+                () => -1,
+                "Used to skip random images. For example, if rand-rate was 5 when generating the data, supply 5 here"
+            )
+        };
         evalModelCommand.Handler = CommandHandler.Create(EvalModel);
 
-        var evalTessCommand = new Command("eval-tesseract", "Evaluates the performance of Tesseract on the given dataset");
-        evalTessCommand.Add(new Argument<DirectoryInfo>("tessdata-path", "Path to the tessdata directory").ExistingOnly());
-        evalTessCommand.Add(new Argument<string>("language", "Tesseract language string"));
-        evalTessCommand.Add(new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly());
-        evalTessCommand.Add(new Argument<DirectoryInfo>("data-dir", "Path of directory containing the dataset").ExistingOnly());
-        evalTessCommand.Add(new Option<int>(
-            new string[] { "--skip", "-s" },
-            () => -1,
-            "Used to skip random images. For example, if rand-rate was 5 when generating the data, supply 5 here")
-        );
+        var evalTessCommand = new Command("eval-tesseract", "Evaluates the performance of Tesseract on the given dataset")
+        {
+            new Argument<DirectoryInfo>("tessdata-path", "Path to the tessdata directory").ExistingOnly(),
+            new Argument<string>("language", "Tesseract language string"),
+            new Argument<FileInfo>("codec-path", "Path to the codec").ExistingOnly(),
+            new Argument<DirectoryInfo>("data-dir", "Path of directory containing the dataset").ExistingOnly(),
+            new Option<int>(
+                new string[] { "--skip", "-s" },
+                () => -1,
+                "Used to skip random images. For example, if rand-rate was 5 when generating the data, supply 5 here"
+            )
+        };
         evalTessCommand.Handler = CommandHandler.Create(EvalTesseract);
 
-        var convertCommand = new Command("convert", "Converts a PGS subtitle file to SRT");
-        convertCommand.Add(new Argument<FileInfo>("pgs-path", "Path to PGS file").ExistingOnly());
-        convertCommand.Add(new Argument<FileInfo>("srt-path", "Path to save converted SRT file to").LegalFilePathsOnly());
-        convertCommand.Add(new Argument<string>("model-str", "The name of the trained model (bundled in the executable assembly)"));
+        var convertCommand = new Command("convert", "Converts a PGS subtitle file to SRT")
+        {
+            new Argument<FileInfo>("pgs-path", "Path to PGS file").ExistingOnly(),
+            new Argument<FileInfo>("srt-path", "Path to save converted SRT file to").LegalFilePathsOnly(),
+            new Argument<string>("model-str", "The name of the trained model (bundled in the executable assembly)")
+        };
         convertCommand.Handler = CommandHandler.Create(ConvertPGS);
 
         var rootCommand = new RootCommand("Command line tool for converting PGS subtitles to SRT subtitles using OCR")
@@ -142,11 +162,9 @@ static class ProgramEntry
         PGSReader pgsReader;
         using (var stream = path.Open(FileMode.Open))
         {
-            using (var reader = new EndiannessAwareBinaryReader(stream, System.Text.Encoding.UTF8,
-                                                                false, EndiannessAwareBinaryReader.Endianness.Big))
-            {
-                pgsReader = new PGSReader(reader);
-            }
+            using var reader = new EndiannessAwareBinaryReader(stream, Encoding.UTF8,
+                                                                false, EndiannessAwareBinaryReader.Endianness.Big);
+            pgsReader = new PGSReader(reader);
         }
 
         int frameCount = 0;
@@ -309,14 +327,12 @@ static class ProgramEntry
             List<Image<A8>> images = new();
             foreach (var path in imgPaths)
             {
-                using (Image<A8> image = Image.Load<A8>(path.FullName))
-                {
-                    var resized = image.Clone(ctx =>
-                        ctx.Resize(0, 32)
-                    );
+                using Image<A8> image = Image.Load<A8>(path.FullName);
+                var resized = image.Clone(ctx =>
+                    ctx.Resize(0, 32)
+                );
 
-                    images.Add(resized);
-                }
+                images.Add(resized);
             }
 
             var strings = model.Infer(images, langModel);
@@ -440,16 +456,14 @@ static class ProgramEntry
         PGSReader pgsReader;
         using (var stream = pgsPath.Open(FileMode.Open))
         {
-            using (var reader = new EndiannessAwareBinaryReader(stream, System.Text.Encoding.UTF8,
-                                                                false, EndiannessAwareBinaryReader.Endianness.Big))
-            {
-                pgsReader = new PGSReader(reader);
-            }
+            using var reader = new EndiannessAwareBinaryReader(stream, Encoding.UTF8,
+                                                                false, EndiannessAwareBinaryReader.Endianness.Big);
+            pgsReader = new PGSReader(reader);
         }
 
         // Convert file and display progress bar
         BoundedTaskScheduler taskScheduler = new(32);
-        List<(PGSFrame, Task<List<string>>)> results = new();
+        List<(int, Task<List<string>>)> results = new();
         using (var bar = new ProgressBar(10000, "Converting PGS to SRT..."))
         {
             var progressReporter = bar.AsProgress<double>();
@@ -468,7 +482,7 @@ static class ProgramEntry
 
                     var task = new Task<List<string>>(() => model.Infer(lines, langModel));
                     await taskScheduler.Schedule(task);
-                    results.Add((frame, task));
+                    results.Add((frame.Timestamp, task));
                 }
 
                 // Update progress bar
@@ -479,7 +493,7 @@ static class ProgramEntry
 
         SRT srt = new();
         SRTFrame? lastFrame = null;
-        foreach ((var frame, var task) in results)
+        foreach ((var timestamp, var task) in results)
         {
             var strings = await task;
             var text = new StringBuilder();
@@ -494,11 +508,11 @@ static class ProgramEntry
 
             if (lastFrame != null && lastFrame.Text.Length > 0)
             {
-                lastFrame.EndTimestamp = frame.Timestamp;
+                lastFrame.EndTimestamp = timestamp;
                 srt.AddFrame(lastFrame);
             }
 
-            lastFrame = new SRTFrame(frame.Timestamp, text.ToString());
+            lastFrame = new SRTFrame(timestamp, text.ToString());
         }
 
         srt.Write(srtPath);

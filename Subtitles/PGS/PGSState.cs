@@ -41,10 +41,10 @@ class PGSState
         }
     }
 
-    private List<CompositionObject> _compositionObjects = new();
-    private List<WritableImage> _objects = new();
-    private List<Rgba32[]> _palettes = new();
-    private List<WindowDefinition> _windows = new();
+    private readonly List<CompositionObject> _compositionObjects = new();
+    private readonly List<WritableImage> _objects = new();
+    private readonly List<Rgba32[]> _palettes = new();
+    private readonly List<WindowDefinition> _windows = new();
 
     private int _displayWidth;
     private int _displayHeight;
@@ -108,14 +108,18 @@ class PGSState
 
         var image = _objects[segment.ObjectID];
 
-        foreach (var pixel in segment.Pixels)
+        foreach ((var color, var length) in RunLengthDecoder.Decode(segment.RLEData))
         {
-            if (pixel >= _palettes[_currentPalette].Length)
+            if (color >= _palettes[_currentPalette].Length)
             {
                 throw new PGSStateException("Tried to write color outside palette range");
             }
 
-            image.WritePixel(_palettes[_currentPalette][pixel]);
+            var rgba = _palettes[_currentPalette][color];
+            for (var i = 0; i < length; i++)
+            {
+                image.WritePixel(rgba);
+            }
         }
     }
 

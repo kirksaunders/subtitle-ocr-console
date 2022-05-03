@@ -5,10 +5,10 @@ namespace subtitle_ocr_console.Subtitles.SRT;
 
 public class SRT
 {
-    private List<SRTFrame> _frames = new();
-    public ReadOnlyCollection<SRTFrame> Frames { get { return _frames.AsReadOnly(); } }
+    private readonly List<SRTFrame> _frames = new();
+    public ReadOnlyCollection<SRTFrame> Frames => _frames.AsReadOnly();
 
-    private static IComparer<SRTFrame> _frameComparer = Comparer<SRTFrame>.Create((x, y) => x.StartTimestamp.CompareTo(y.StartTimestamp));
+    private static readonly IComparer<SRTFrame> _frameComparer = Comparer<SRTFrame>.Create((x, y) => x.StartTimestamp.CompareTo(y.StartTimestamp));
 
     public SRT()
     {
@@ -55,7 +55,7 @@ public class SRT
                 if (frame.StartTimestamp == -1 && frame.EndTimestamp == -1)
                 {
                     // We expect to read the start and end timestamps separated by " --> "
-                    string[] strs = trimmed.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+                    string[] strs = trimmed.Split(Array.Empty<char>(), StringSplitOptions.RemoveEmptyEntries);
 
                     if (strs.Length != 3 || !strs[1].Equals("-->"))
                     {
@@ -87,9 +87,10 @@ public class SRT
         }
     }
 
-    private static CultureInfo _culture = new("hr-HR");
+    // For comma separator for milliseconds instead of period
+    private static readonly CultureInfo _culture = new("hr-HR");
 
-    private TimeSpan? ParseTimestamp(string input)
+    private static TimeSpan? ParseTimestamp(string input)
     {
         TimeSpan ts;
         bool success = TimeSpan.TryParse(input, _culture, out ts);
@@ -110,23 +111,21 @@ public class SRT
 
     public void Write(FileInfo path)
     {
-        using (var writer = new StreamWriter(path.FullName))
+        using var writer = new StreamWriter(path.FullName);
+
+        for (var i = 0; i < _frames.Count; i++)
         {
-            // For comma separator for milliseconds instead of period
-            for (var i = 0; i < _frames.Count; i++)
-            {
-                var frame = _frames[i];
-                var startTime = new TimeSpan(0, 0, 0, 0, frame.StartTimestamp);
-                var endTime = new TimeSpan(0, 0, 0, 0, frame.EndTimestamp);
+            var frame = _frames[i];
+            var startTime = new TimeSpan(0, 0, 0, 0, frame.StartTimestamp);
+            var endTime = new TimeSpan(0, 0, 0, 0, frame.EndTimestamp);
 
-                var t1 = startTime.ToString(@"hh\:mm\:ss\,fff");
-                var t2 = endTime.ToString(@"hh\:mm\:ss\,fff");
+            var t1 = startTime.ToString(@"hh\:mm\:ss\,fff");
+            var t2 = endTime.ToString(@"hh\:mm\:ss\,fff");
 
-                writer.WriteLine($"{i + 1}");
-                writer.WriteLine($"{t1} --> {t2}");
-                writer.WriteLine(frame.Text);
-                writer.WriteLine("");
-            }
+            writer.WriteLine($"{i + 1}");
+            writer.WriteLine($"{t1} --> {t2}");
+            writer.WriteLine(frame.Text);
+            writer.WriteLine("");
         }
     }
 }

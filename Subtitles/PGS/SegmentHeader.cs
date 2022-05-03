@@ -36,33 +36,15 @@ class SegmentHeader
             DecodingTimestamp = reader.ReadUInt32();
 
             byte type = reader.ReadByte();
-
-            switch (type)
+            Type = type switch
             {
-                case 0x14:
-                    Type = SegmentType.PDS;
-                    break;
-
-                case 0x15:
-                    Type = SegmentType.ODS;
-                    break;
-
-                case 0x16:
-                    Type = SegmentType.PCS;
-                    break;
-
-                case 0x17:
-                    Type = SegmentType.WDS;
-                    break;
-
-                case 0x80:
-                    Type = SegmentType.END;
-                    break;
-
-                default:
-                    throw new PGSReadException($"Unknown segment type: {type}");
-            }
-
+                0x14 => SegmentType.PDS,
+                0x15 => SegmentType.ODS,
+                0x16 => SegmentType.PCS,
+                0x17 => SegmentType.WDS,
+                0x80 => SegmentType.END,
+                _ => throw new PGSReadException($"Unknown segment type: {type}"),
+            };
             Size = reader.ReadUInt16();
 
             if (Type == SegmentType.END && Size != 0)
