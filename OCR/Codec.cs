@@ -4,7 +4,7 @@ namespace subtitle_ocr_console.OCR;
 
 public class Codec
 {
-    private List<CodecCharacter> _characters = new();
+    private readonly List<CodecCharacter> _characters = new();
 
     public int Count { get { return _characters.Count; } }
 

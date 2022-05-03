@@ -2,7 +2,7 @@ namespace subtitle_ocr_console.Utils;
 
 public class BoundedTaskScheduler
 {
-    private SemaphoreSlim _pool;
+    private readonly SemaphoreSlim _pool;
 
     public BoundedTaskScheduler(int maxTasks)
     {

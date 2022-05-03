@@ -26,20 +26,12 @@ class CompositionObject
 
             byte flag = reader.ReadByte();
 
-            switch (flag)
+            Cropped = flag switch
             {
-                case 0x00:
-                    Cropped = false;
-                    break;
-
-                case 0x80:
-                    Cropped = true;
-                    break;
-
-                default:
-                    throw new PGSReadException($"Unknown object cropped flag: {flag}");
-            }
-
+                0x00 => false,
+                0x80 => true,
+                _ => throw new PGSReadException($"Unknown object cropped flag: {flag}"),
+            };
             HorizontalPosition = reader.ReadUInt16();
             VerticalPosition = reader.ReadUInt16();
 

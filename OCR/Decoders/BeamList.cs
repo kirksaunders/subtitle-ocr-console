@@ -4,7 +4,7 @@ public class BeamList
 {
     private BeamEntry[] _data;
     private BeamEntry[] _dataSwap;
-    private int _capacity;
+    private readonly int _capacity;
     private int _size = 0;
 
     public int Count { get { return _size; } }
@@ -40,18 +40,21 @@ public class BeamList
 
     public ReadOnlySpan<BeamEntry> AsSpan()
     {
-        return _data.AsSpan().Slice(0, _size);
+        return _data.AsSpan()[.._size];
     }
 
     public void Clear()
     {
+        Array.Clear(_data, 0, _capacity);
+        Array.Clear(_dataSwap, 0, _capacity);
         _size = 0;
     }
 
-    public void SwapClear()
+    public void SwapAndClear()
     {
-        _size = 0;
         (_data, _dataSwap) = (_dataSwap, _data);
+        Array.Clear(_data, 0, _size);
+        _size = 0;
     }
 
     public BeamEntry GetMinimum()
@@ -72,9 +75,7 @@ public class BeamList
 
             if (_data[idx].CompareTo(_data[parent]) < 0)
             {
-                BeamEntry tmp = _data[parent];
-                _data[parent] = _data[idx];
-                _data[idx] = tmp;
+                (_data[idx], _data[parent]) = (_data[parent], _data[idx]);
             }
             else
             {
@@ -116,9 +117,7 @@ public class BeamList
 
             if (_data[idx].CompareTo(_data[child]) > 0)
             {
-                BeamEntry tmp = _data[child];
-                _data[child] = _data[idx];
-                _data[idx] = tmp;
+                (_data[idx], _data[child]) = (_data[child], _data[idx]);
             }
             else
             {

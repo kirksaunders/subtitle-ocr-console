@@ -281,7 +281,7 @@ public class BeamEntry : IComparable<BeamEntry>
 
     public BeamEntry? Parent { get; private set; }
     public int Label { get; private set; }
-    private Dictionary<int, BeamEntry> _children = new();
+    private readonly Dictionary<int, BeamEntry> _children = new();
 
     public Probability OldP = new();
     public Probability NewP = new();
@@ -315,6 +315,72 @@ public class BeamEntry : IComparable<BeamEntry>
     public bool Active()
     {
         return NewP.Total != LOG_0;
+    }
+
+    private bool ActiveAncestor()
+    {
+        var parent = Parent;
+        while (parent != null)
+        {
+            if (parent.Active())
+            {
+                return true;
+            }
+            parent = parent.Parent;
+        }
+
+        return false;
+    }
+
+    private bool ActiveDescendant()
+    {
+        foreach (var child in _children.Values)
+        {
+            if (child.Active() || child.ActiveDescendant())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void Delete(bool childrenOnly = false)
+    {
+        // Reset probabilities
+        OldP.Reset();
+        NewP.Reset();
+
+        // Remove self from parent's child list and remove references to children. This is to delete circular references
+        // so the GC/reference counter can free memory more easily. Also recursively delete parents/children if they're
+        // inactive.
+        // Can only do this if there's no path from an active ancestor to an active descendant through this entry.
+        if (Parent != null && !(ActiveAncestor() && ActiveDescendant()))
+        {
+            if (!childrenOnly)
+            {
+                Parent.DeleteChild(this);
+            }
+            foreach (var child in _children.Values)
+            {
+                if (!child.Active())
+                {
+                    child.Delete(true);
+                }
+            }
+            _children.Clear();
+        }
+    }
+
+    private void DeleteChild(BeamEntry child)
+    {
+        _children.Remove(child.Label);
+
+        // If not active, try to delete self
+        if (!Active())
+        {
+            Delete();
+        }
     }
 
     public BeamEntry GetChild(int label)

@@ -6,10 +6,12 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
-    <PublishSingleFile>true</PublishSingleFile>
+    <PublishSingleFile Condition="'$(Configuration)' == 'Release'">true</PublishSingleFile>
     <RootNamespace>subtitle_ocr_console</RootNamespace>
-    <!-- <RuntimeIdentifier>win10-x64</RuntimeIdentifier> -->
-    <SelfContained>true</SelfContained>
+	<!-- Change the runtime identifier to your platform -->
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <SelfContained Condition="'$(Configuration)' == 'Release'">true</SelfContained>
+	<ServerGarbageCollection>true</ServerGarbageCollection>
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 

@@ -5,7 +5,7 @@ namespace subtitle_ocr_console.Subtitles.PGS;
 class WDSegment : Segment
 {
     public byte NumberWindows { get; private set; }
-    private List<WindowDefinition> _windows = new();
+    private readonly List<WindowDefinition> _windows = new();
     public ReadOnlyCollection<WindowDefinition> Windows => _windows.AsReadOnly();
 
     public WDSegment(SegmentHeader header, BinaryReader reader)

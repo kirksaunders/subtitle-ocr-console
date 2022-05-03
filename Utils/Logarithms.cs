@@ -2,8 +2,8 @@ namespace subtitle_ocr_console.Utils;
 
 public static class Logarithms
 {
-    public static float LOG_0 = MathF.Log(0.0f);
-    public static float LOG_1 = MathF.Log(1.0f);
+    public static readonly float LOG_0 = MathF.Log(0.0f);
+    public static readonly float LOG_1 = MathF.Log(1.0f);
 
     public static float LogAddExp(float a, float b)
     {
