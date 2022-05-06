@@ -4,8 +4,12 @@ Contained in this repository is a tool to convert image-based subtitle formats (
 ## LICENSING NOTICE
 The code contained within this repository is the original work of Kirk Saunders, with the exception of the `CTCBeamSearchDecoder` and `BeamEntry` classes, which were ported from TensorFlow (see those files for the original license notice). The code is currently published here without any licensing (a license has yet to be chosen). Hence, all code within this project is not to be modified, distributed, or used in any project until otherwise noted. The only usage granted currently is to clone, build, and run the application.
 
-## Inference Dependencies
+## Build-Time Dependencies
 - .NET 6.0 Runtime + SDK (either Visual Studio or Linux command-line package)
+- Rust Compiler + Cargo (must be in system PATH)
+
+## Inference Dependencies
+- CUDA (optional, for GPU inference)
 
 ## Training Dependencies
 - Python 3.0
@@ -16,11 +20,13 @@ The code contained within this repository is the original work of Kirk Saunders,
 ## Build Instructions
 Depending on your platform and toolset, your build instructions vary. In general, building is done like any other C# project.
 
+***FIRST STEP:*** Edit the project file at `subtitle-ocr-console.csproj` and change the runtime identifier to your platform (see comment in `csproj` file, and see list [here](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)).
+
 ### On Linux (Or Dotnet Command Line in General)
-Assuming you have the .NET SDK installed, a self-contained executable can be built with `dotnet publish -c release --self-contained --runtime linux-x64`. You can modify the runtime to match your platform (see list [here](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)). The produced executable is at `bin/release/net6.0/linux-x64/publish/subtitle-ocr-console`. This executable is completely self-contained and can be copied/moved to a separate directory for running any commands (except the Tesseract command, since it's not supported on Linux).
+Assuming you have the .NET SDK installed, a self-contained executable can be built with `dotnet publish -c release --self-contained`. The produced executable is at `bin/Release/net6.0/<Runtime Identifier>/publish/subtitle-ocr-console`. This executable is completely self-contained and can be copied/moved to a separate directory for running any commands (except the Tesseract command, since it's not supported on Linux).
 
 ### With Visual Studio
-To build the .NET application with Visual Studio, first ensure you have Visual Studio with .NET 6.0 SDK installed. Next, open `subtitle-ocr-console.sln` in Visual Studio. Once loaded, right click the `subtitle-ocr-console` project (NOT the solution) in the solution explorer and click `Publish`. A window will pop up asking where you would like to publish. Click through the menu choosing `Folder` for each option so that the built executable is saved locally on disk. Click `Finish` to create the Publish profile. Once that is complete, you should see the newly created profile in the publish menu. Ensure the `Configuration` is set to `Release`. Next, click the pencil next to `Target Runtime` and change the `Deployment mode` to `Self-contained`. Also change the target runtime to win10-x64 (or whatever platform you are on, see list [here](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)). Click `Save`. As a final step, double-click the subtitle-ocr-console project (NOT the solution) in the solution explorer to open it for XML editing. Find the line referring to `RuntimeIdentifier`, uncomment it, and modify the runtime to match what you chose in the previous step. Once this is complete, click the `Publish` button in the top right of the window. You should see a green box indicating that publishing completed. Click the `Open folder` button to open the folder that the executable is contained in. This executable is completely self-contained and can be copied/moved to a separate directory for running any commands.
+To build the .NET application with Visual Studio, first ensure you have Visual Studio with .NET 6.0 SDK installed. Next, open `subtitle-ocr-console.sln` in Visual Studio. Once loaded, right click the `subtitle-ocr-console` project (NOT the solution) in the solution explorer and click `Publish`. A window will pop up asking where you would like to publish. Click through the menu choosing `Folder` for each option so that the built executable is saved locally on disk. Click `Finish` to create the Publish profile. Once that is complete, you should see the newly created profile in the publish menu. Ensure the `Configuration` is set to `Release`. Next, click the pencil next to `Target Runtime` and change the `Deployment mode` to `Self-contained`. Also change the target runtime to `win10-x64` (or whatever platform you are on, see list [here](https://docs.microsoft.com/en-us/dotnet/core/rid-catalog)). Click `Save`. Finally, click the `Publish` button in the top right of the window. You should see a green box indicating that publishing completed. Click the `Open folder` button to open the folder that the executable is contained in. This executable is completely self-contained and can be copied/moved to a separate directory for running any commands.
 
 ## Inference Usage
 After building the .NET executable, there are various sub-commands that can be run. To see detailed information, run `./subtitle-ocr-console -h`. This gives information about the various sub-commands. To see information about a specific sub-command, run `./subtitle-ocr-console <sub-command> -h`.
@@ -30,7 +36,7 @@ The convert sub-command is used to convert a PGS subtitle to SRT. Usage is as fo
 ```
 ./subtitle-ocr-console convert <path to PGS file> <path to output SRT file> <name of model to use>
 ```
-There is one included pre-trained CRNN model called `en` that can be used. This is bundled within the executable file at publish time (see above step). In fact, all trained model files included in the trained-models directory are bundled in the executable.
+There is one included pre-trained CRNN model called `eng` that can be used. This is bundled within the executable file at publish time (see above step). In fact, all trained model files included in the trained-models directory are bundled in the executable.
 
 Also included in this directory is `example-data/spirited-away-pgs.sup`, which is a sample PGS subtitle extracted from the Blu-ray movie Spirited Away.
 
@@ -51,7 +57,7 @@ The first step of training is to generate a codec. As always, use the `-h` flag 
 The dollar sign syntax is a literal string in Bash. Different shells may require different syntax to escape single or double quotes for this command.
 
 ### Data Generation
-Data generation works by rendering text data as images. The text data must be sourced as plain text from files provided to the `generate-data` sub-command. The text data used for training the included pre-trained model was taken from the eBooks *Wuthering Heights* and *Moby Dick* obtained in plain text format from [Project Gutenberg](https://www.gutenberg.org/).
+Data generation works by rendering text data as images. The text data must be sourced as plain text from files provided to the `generate-data` sub-command. The text data used for training the included pre-trained model was taken from the eBooks *Wuthering Heights* and *Moby Dick* obtained in plain text format from [Project Gutenberg](https://www.gutenberg.org/), and from various SRT subtitles taken from [Open Subtitles](https://opensubtitles.org/).
 
 Here is an example command to generate a training dataset consisting of 100 images with one random image for every four images from the eBook:
 ```
@@ -63,7 +69,7 @@ Generating validation data would be done the same way, except with the `-v` flag
 **NOTE:** Validation data is generated using different fonts than training data.
 
 ### Language Model Generation
-A simple character-level language model can be trained from plain-text data. The language model included with the pre-trained model was trained on the eBooks *Wuthering Heights*, *Moby Dick*, and *Dracula* obtained from [Project Gutenberg](https://www.gutenberg.org/).
+A simple character-level language model can be trained from plain-text data. The language model included with the pre-trained model was trained on the eBooks *Wuthering Heights*, *Moby Dick*, and *Dracula* obtained from [Project Gutenberg](https://www.gutenberg.org/), and from various SRT subtitles taken from [Open Subtitles](https://opensubtitles.org/).
 
 Here is how to train a language model:
 ```
