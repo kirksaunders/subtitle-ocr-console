@@ -347,8 +347,7 @@ public class BeamEntry : IComparable<BeamEntry>
 
     public void Delete(bool childrenOnly = false)
     {
-        // Reset probabilities
-        OldP.Reset();
+        // Reset probability
         NewP.Reset();
 
         // Remove self from parent's child list and remove references to children. This is to delete circular references

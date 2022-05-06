@@ -83,8 +83,8 @@ class SizeTrackingMaxPool2d(SizeTracking):
         batch_size = sizes.size(0)
         channels = sizes[:, 0].reshape((batch_size, 1))
         # TODO: Need to implement ceil_mode=True
-        heights = torch.div(sizes[:, 1] + 2 * self.padding[0] - self.dilation[0] * (self.kernel_size[0] - 1) - 1, self.stride[0], rounding_mode="floor") + 1
-        widths = torch.div(sizes[:, 2] + 2 * self.padding[1] - self.dilation[1] * (self.kernel_size[1] - 1) - 1, self.stride[1], rounding_mode="floor") + 1
+        heights = torch.div(sizes[:, 1] + 2 * self.padding[0] - self.dilation[0] * (self.kernel_size[0] - 1) - 1, self.stride[0], rounding_mode="trunc") + 1
+        widths = torch.div(sizes[:, 2] + 2 * self.padding[1] - self.dilation[1] * (self.kernel_size[1] - 1) - 1, self.stride[1], rounding_mode="trunc") + 1
         heights = heights.reshape((batch_size, 1))
         widths = widths.reshape((batch_size, 1))
         return torch.cat((channels, heights, widths), dim=1)

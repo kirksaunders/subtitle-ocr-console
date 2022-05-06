@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <ImplicitUsings>enable</ImplicitUsings>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
@@ -11,14 +12,16 @@
     <!-- Change the runtime identifier to your platform -->
     <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
     <SelfContained Condition="'$(Configuration)' == 'Release'">true</SelfContained>
-    <!-- The below line improves performance at the cost of higher memory usage. On windows, the
-         memory usage different is around 2x, but on Linux it's much more. -->
-    <!-- <ServerGarbageCollection>true</ServerGarbageCollection> -->
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
+  <Target Name="RustBuild" BeforeTargets="PreBuildEvent">
+    <Message Importance="High" Text="Building Rust ctc-beam-decoder library" />
+    <Exec Command="cargo build --release --manifest-path=$(ProjectDir)/rust/ctc-beam-decoder/Cargo.toml" />
+  </Target>
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.11.0" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Gpu" Version="1.11.0" />
     <PackageReference Include="SixLabors.ImageSharp" Version="2.0.0" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta14" />
     <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta16" />
@@ -26,6 +29,23 @@
     <PackageReference Include="System.CommandLine.NamingConventionBinder" Version="2.0.0-beta3.22114.1" />
     <PackageReference Include="ShellProgressBar" Version="5.1.0" />
     <PackageReference Include="Tesseract" Version="4.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ContentWithTargetPath Include="rust/ctc-beam-decoder/target/release/libctc_beam_decoder.so" Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>libctc_beam_decoder.so</TargetPath>
+    </ContentWithTargetPath>
+
+    <ContentWithTargetPath Include="rust/ctc-beam-decoder/target/release/ctc_beam_decoder.dll" Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>ctc_beam_decoder.dll</TargetPath>
+    </ContentWithTargetPath>
+
+    <ContentWithTargetPath Include="rust/ctc-beam-decoder/target/release/libctc_beam_decoder.dylib" Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>libctc_beam_decoder.dylib</TargetPath>
+    </ContentWithTargetPath>
   </ItemGroup>
 
   <ItemGroup>

@@ -53,7 +53,7 @@ class TextDataset(torch.utils.data.Dataset):
 
         # Load and encode label
         if not "EncodedLabel" in annotation:
-            label = torch.zeros(len(annotation["Text"]), dtype=torch.long)
+            label = torch.zeros(len(annotation["Text"]), dtype=torch.int32)
             for i in range(len(annotation["Text"])):
                 label[i] = self.class_map[annotation["Text"][i]]
             annotation["EncodedLabel"] = label
@@ -82,13 +82,13 @@ def padded_sorted_collate(batch):
     labels = [x[1] for x in batch]
 
     # Pad images by the max width in batch
-    image_sizes = torch.tensor([x.size() for x in images], dtype=torch.long)
+    image_sizes = torch.tensor([x.size() for x in images], dtype=torch.int32)
     padded_images = nn.utils.rnn.pad_sequence(images, batch_first=True)
     padded_images = torch.unsqueeze(padded_images, 1)
-    image_sizes = torch.cat((torch.ones(len(batch), 1, dtype=torch.long), image_sizes), dim=1)
+    image_sizes = torch.cat((torch.ones(len(batch), 1, dtype=torch.int32), image_sizes), dim=1)
 
     # Pad labels by the max length in batch
-    label_sizes = torch.tensor([x.size(0) for x in labels], dtype=torch.long)
+    label_sizes = torch.tensor([x.size(0) for x in labels], dtype=torch.int32)
     padded_labels = nn.utils.rnn.pad_sequence(labels, batch_first=True)
 
     return [padded_images, padded_labels, image_sizes, label_sizes]
