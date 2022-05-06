@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
+using Microsoft.ML.OnnxRuntime.Tensors;
+
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
@@ -462,8 +464,19 @@ static class ProgramEntry
         }
 
         // Convert file and display progress bar
-        BoundedTaskScheduler taskScheduler = new(32);
+        // BoundedTaskScheduler inputScheduler = new(1, 3);
+        // BoundedTaskScheduler modelScheduler = new(1, 1);
+        // BoundedTaskScheduler decodeScheduler = new(32, 32);
+        // var preferredBatchSize = 24;
+        BoundedTaskScheduler inputScheduler = new(1, 1);
+        BoundedTaskScheduler modelScheduler = new(4, 16);
+        BoundedTaskScheduler decodeScheduler = new(8, 16);
+        var preferredBatchSize = 1;
+        InferencePipeline pipeline = new(model, inputScheduler, modelScheduler, decodeScheduler);
         List<(int, int, Task<List<string>>)> results = new();
+        List<(int, int)> timestamps = new();
+        List<List<Image<A8>>> batches = new();
+        var batchesLines = 0;
         using (var bar = new ProgressBar(10000, "Converting PGS to SRT..."))
         {
             var progressReporter = bar.AsProgress<double>();
@@ -483,9 +496,23 @@ static class ProgramEntry
                             line.Mutate(ctx => ctx.Resize(0, 32));
                         }
 
-                        var task = new Task<List<string>>(() => model.Infer(lines, langModel));
-                        await taskScheduler.Schedule(task);
-                        results.Add((lastFrame.Timestamp, frame.Timestamp, task));
+                        batches.Add(lines);
+                        timestamps.Add((lastFrame.Timestamp, frame.Timestamp));
+                        batchesLines += lines.Count;
+
+                        if (batchesLines >= preferredBatchSize)
+                        {
+                            var tasks = pipeline.Process(batches, langModel);
+                            for (var i = 0; i < tasks.Count; i++)
+                            {
+                                results.Add((timestamps[i].Item1, timestamps[i].Item2, tasks[i]));
+                            }
+
+                            // Clear lists
+                            timestamps = new();
+                            batches = new();
+                            batchesLines = 0;
+                        }
                     }
                 }
 
@@ -494,6 +521,21 @@ static class ProgramEntry
                 // Update progress bar
                 progressReporter.Report(progress);
             }
+
+            if (batchesLines > 0)
+            {
+                var tasks = pipeline.Process(batches, langModel);
+                for (var i = 0; i < tasks.Count; i++)
+                {
+                    results.Add((timestamps[i].Item1, timestamps[i].Item2, tasks[i]));
+                }
+
+                // Clear lists
+                timestamps = new();
+                batches = new();
+                batchesLines = 0;
+            }
+
             progressReporter.Report(1.0);
         }
 

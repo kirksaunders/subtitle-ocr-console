@@ -1,0 +1,13 @@
+[package]
+name = "ctc-beam-decoder"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+linkme = "0.2.10"
+rnet = "0.2.0"

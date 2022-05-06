@@ -21,7 +21,7 @@ public class InferenceModel
     public InferenceModel(Codec codec, FileInfo savePath)
     {
         _codec = codec;
-        _session = new(savePath.FullName);
+        _session = new(savePath.FullName/* , SessionOptions.MakeSessionOptionWithCudaProvider() */);
 
         _simMatrix.Add((_codec.GetCharacterIndex('I'), _codec.GetCharacterIndex('l'), 0.75f));
     }
@@ -37,13 +37,16 @@ public class InferenceModel
             inputStream.CopyTo(memoryStream);
             bytes = memoryStream.ToArray();
         }
-        _session = new(bytes);
+        _session = new(bytes/* , SessionOptions.MakeSessionOptionWithCudaProvider() */);
 
         _simMatrix.Add((_codec.GetCharacterIndex('I'), _codec.GetCharacterIndex('l'), 0.75f));
     }
 
-    public List<string> Infer(List<Image<A8>> images, LanguageModel? languageModel = null)
+    public List<NamedOnnxValue> PrepareInput(List<Image<A8>> images)
     {
+        // Reverse sort images by width
+        //var sortedImages = images.OrderByDescending(a => a.Width).ToList();
+
         int batchSize = images.Count;
         int maxWidth = -1;
         foreach (var img in images)
@@ -55,7 +58,7 @@ public class InferenceModel
         }
 
         var imageTensor = new DenseTensor<float>(new int[] { batchSize, 1, maxWidth, 32 });
-        var sizeTensor = new DenseTensor<Int64>(new int[] { batchSize, 3 });
+        var sizeTensor = new DenseTensor<int>(new int[] { batchSize, 3 });
 
         for (var i = 0; i < images.Count; i++)
         {
@@ -79,12 +82,24 @@ public class InferenceModel
         var input = new List<NamedOnnxValue>
         {
             NamedOnnxValue.CreateFromTensor<float>("images", imageTensor),
-            NamedOnnxValue.CreateFromTensor<Int64>("sizes", sizeTensor)
+            NamedOnnxValue.CreateFromTensor<int>("sizes", sizeTensor)
         };
 
+        return input;
+    }
+
+    public (Tensor<float>, Tensor<int>) FeedForward(List<NamedOnnxValue> input)
+    {
         var outputs = _session.Run(input).ToList();
         var probs = outputs[0].AsTensor<float>();
-        var sizes = outputs[1].AsTensor<Int64>();
+        var sizes = outputs[1].AsTensor<int>();
+
+        return (probs, sizes);
+    }
+
+    public List<string> Decode(Tensor<float> probs, Tensor<int> sizes, LanguageModel? languageModel)
+    {
+        int batchSize = sizes.Dimensions[0];
 
         // Apply similarity matrix
         var newProbs = probs.Clone();
@@ -119,15 +134,49 @@ public class InferenceModel
             }
         }
 
-        var decoded = CTCBeamSearchDecoder.Decode(newProbs, sizes, 50, languageModel);
+        var sizesNew = new List<int>();
+        for (var i = 0; i < batchSize; i++)
+        {
+            sizesNew.Add(sizes[i, 0]);
+        }
+        var numClasses = newProbs.Dimensions[2];
+        CTCBeamDecoderExternal.DecoderOutput decoded;
+        if (languageModel != null)
+        {
+            decoded = CTCBeamDecoderExternal.DecodeWithLm(
+                newProbs,
+                sizesNew,
+                numClasses,
+                50,
+                0,
+                languageModel.FirstCharProbs,
+                languageModel.SecondCharProbsFlat,
+                0.25f,
+                1e-6f);
+        }
+        else
+        {
+            decoded = CTCBeamDecoderExternal.Decode(newProbs, sizesNew, numClasses, 50, 0);
+        }
+
+        // Get max sequence length
+        int maxLen = 0;
+        foreach (int len in decoded.lengths)
+        {
+            if (len > maxLen)
+            {
+                maxLen = len;
+            }
+        }
 
         var strings = new List<string>(batchSize);
-        foreach (var seq in decoded)
+        for (var batch = 0; batch < batchSize; batch++)
         {
-            var builder = new StringBuilder(seq.Dimensions[0]);
-            for (var i = 0; i < seq.Dimensions[0]; i++)
+            var len = (int)decoded.lengths[batch];
+            var builder = new StringBuilder((int)len);
+            for (var i = 0; i < (int)len; i++)
             {
-                CodecCharacter character = _codec.GetCharacter(seq[i] - 1)
+                CodecCharacter character = _codec.GetCharacter((int)(decoded.sequences[batch * maxLen + i] - 1))
                                            ?? throw new ArgumentNullException("Index out of range for codec");
                 builder.Append(character.Char);
             }
@@ -135,5 +184,13 @@ public class InferenceModel
         }
 
         return strings;
+    }
+
+    public List<string> Infer(List<Image<A8>> images, LanguageModel? languageModel = null)
+    {
+        var input = PrepareInput(images);
+        (var probs, var sizes) = FeedForward(input);
+
+        return Decode(probs, sizes, languageModel);
     }
 }

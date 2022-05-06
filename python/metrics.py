@@ -14,7 +14,7 @@ class SequenceAccuracy(nn.Module):
         labels = nn.functional.pad(labels, (0, max_len - label_len))
 
         # Create equality matrix
-        equal = torch.eq(predictions, labels).long()
+        equal = torch.eq(predictions, labels).int()
         
         # Count elements based on label padding mask
         mask = torch.ne(labels, 0)

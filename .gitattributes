@@ -1,0 +1,6 @@
+# Trained models
+trained-models/ filter=lfs diff=lfs merge=lfs -text
+
+# Fonts (enabled and disabled)
+*.ttf filter=lfs diff=lfs merge=lfs -text
+*._ttf filter=lfs diff=lfs merge=lfs -text

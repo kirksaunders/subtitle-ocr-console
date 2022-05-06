@@ -34,8 +34,8 @@ if __name__ == '__main__':
     model.eval()
 
     # Export model
-    x = torch.ones((1, 1, 4, 32))
-    l = torch.tensor([[1, 4, 32]])
+    x = torch.ones((1, 1, 4, 32), dtype=torch.float32)
+    l = torch.tensor([[1, 4, 32]], dtype=torch.int32)
 
     torch.onnx.export(model, (x, l), args.out_dir / "model.onnx",
                     input_names=["images", "sizes"],

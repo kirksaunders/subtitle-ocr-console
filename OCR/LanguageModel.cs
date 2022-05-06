@@ -6,13 +6,16 @@ namespace subtitle_ocr_console.OCR;
 public class LanguageModel
 {
     // Probabilities of a character occurring as the first character of a word.
-    private double[] _firstCharProbs;
-    private double[] _firstCharCumulativeProbs;
+    private float[] _firstCharProbs;
+    public IReadOnlyCollection<float> FirstCharProbs => Array.AsReadOnly(_firstCharProbs);
+    private float[] _firstCharCumulativeProbs;
 
     // Probabilities of a character occurring after another character.
     // Ex: _secondCharProbs[c1][c2] = P(c2 | c1)
-    private double[][] _secondCharProbs;
-    private double[][] _secondCharCumulativeProbs;
+    private float[][] _secondCharProbs;
+    private float[] _secondCharProbsFlat;
+    public IReadOnlyCollection<float> SecondCharProbsFlat => Array.AsReadOnly(_secondCharProbsFlat);
+    private float[][] _secondCharCumulativeProbs;
 
     private readonly Codec _codec;
 
@@ -21,14 +24,15 @@ public class LanguageModel
         _codec = codec;
 
         // Allocate memory for probabilities
-        _firstCharProbs = new double[_codec.Count];
-        _firstCharCumulativeProbs = new double[_codec.Count];
-        _secondCharProbs = new double[_codec.Count][];
-        _secondCharCumulativeProbs = new double[_codec.Count][];
+        _firstCharProbs = new float[_codec.Count];
+        _firstCharCumulativeProbs = new float[_codec.Count];
+        _secondCharProbs = new float[_codec.Count][];
+        _secondCharProbsFlat = new float[_codec.Count * _codec.Count];
+        _secondCharCumulativeProbs = new float[_codec.Count][];
         for (var i = 0; i < _codec.Count; i++)
         {
-            _secondCharProbs[i] = new double[_codec.Count];
-            _secondCharCumulativeProbs[i] = new double[_codec.Count];
+            _secondCharProbs[i] = new float[_codec.Count];
+            _secondCharCumulativeProbs[i] = new float[_codec.Count];
         }
 
         CalculateProbs(lineDataPaths);
@@ -56,11 +60,12 @@ public class LanguageModel
     [MemberNotNull(nameof(_firstCharProbs))]
     [MemberNotNull(nameof(_firstCharCumulativeProbs))]
     [MemberNotNull(nameof(_secondCharProbs))]
+    [MemberNotNull(nameof(_secondCharProbsFlat))]
     [MemberNotNull(nameof(_secondCharCumulativeProbs))]
     private void LoadFromJson(string jsonString)
     {
         JsonSerializerOptions options = new() { IncludeFields = true };
-        (var firstCharProbs, var secondCharProbs) = JsonSerializer.Deserialize<(double[], double[][])>(jsonString, options);
+        (var firstCharProbs, var secondCharProbs) = JsonSerializer.Deserialize<(float[], float[][])>(jsonString, options);
 
         if (firstCharProbs == null || secondCharProbs == null)
         {
@@ -82,13 +87,21 @@ public class LanguageModel
 
         _firstCharProbs = firstCharProbs;
         _secondCharProbs = secondCharProbs;
-
-        // Allocate memory for cumulative probabilities
-        _firstCharCumulativeProbs = new double[_codec.Count];
-        _secondCharCumulativeProbs = new double[_codec.Count][];
+        _secondCharProbsFlat = new float[_codec.Count * _codec.Count];
         for (var i = 0; i < _codec.Count; i++)
         {
-            _secondCharCumulativeProbs[i] = new double[_codec.Count];
+            for (var j = 0; j < _codec.Count; j++)
+            {
+                _secondCharProbsFlat[i * _codec.Count + j] = _secondCharProbs[i][j];
+            }
+        }
+
+        // Allocate memory for cumulative probabilities
+        _firstCharCumulativeProbs = new float[_codec.Count];
+        _secondCharCumulativeProbs = new float[_codec.Count][];
+        for (var i = 0; i < _codec.Count; i++)
+        {
+            _secondCharCumulativeProbs[i] = new float[_codec.Count];
         }
 
         CalculateCululativeProbs();
@@ -137,14 +150,15 @@ public class LanguageModel
         // Calculate probabilities from counts
         for (var i = 0; i < _codec.Count; i++)
         {
-            _firstCharProbs[i] = (double)firstCharCounts[i] / numFirstChars;
+            _firstCharProbs[i] = (float)firstCharCounts[i] / numFirstChars;
 
             for (var j = 0; j < _codec.Count; j++)
             {
                 int denom = numSecondChars[i];
                 if (denom > 0)
                 {
-                    _secondCharProbs[i][j] = (double)secondCharCounts[i, j] / denom;
+                    _secondCharProbs[i][j] = (float)secondCharCounts[i, j] / denom;
+                    _secondCharProbsFlat[i * _codec.Count + j] = _secondCharProbs[i][j];
                 }
             }
         }
@@ -168,7 +182,7 @@ public class LanguageModel
         }
     }
 
-    public double GetProbability(int charIndex)
+    public float GetProbability(int charIndex)
     {
         if (charIndex < 0 || charIndex >= _codec.Count)
         {
@@ -178,7 +192,7 @@ public class LanguageModel
         return _firstCharProbs[charIndex];
     }
 
-    public double GetProbability(int firstCharIndex, int secondCharIndex)
+    public float GetProbability(int firstCharIndex, int secondCharIndex)
     {
         if (firstCharIndex < 0 || firstCharIndex >= _codec.Count)
         {
@@ -194,9 +208,9 @@ public class LanguageModel
 
     private static readonly Random randomGenerator = new();
 
-    private static int SampleDistribution(double[] distribution)
+    private static int SampleDistribution(float[] distribution)
     {
-        double p = Math.Max(0.000001, randomGenerator.NextDouble() * distribution[^1]);
+        float p = Math.Max(0.000001f, randomGenerator.NextSingle() * distribution[^1]);
         int index = Array.BinarySearch(distribution, p);
 
         // If the exact item isn't found, the docs say that "the negative number returned is

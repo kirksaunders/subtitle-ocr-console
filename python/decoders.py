@@ -272,10 +272,10 @@ class CTCGreedyDecoder(nn.Module):
         out = [torch.unique_consecutive(x[:y]) for x, y in zip(out, lengths)]
 
         # Remove blank predictions
-        out = [probabilities.new_tensor([i for i in x.tolist() if i != 0], dtype=torch.long) for x in out]
+        out = [probabilities.new_tensor([i for i in x.tolist() if i != 0], dtype=torch.int32) for x in out]
         
         # Calculate output lengths
-        out_lengths = lengths.new_tensor([x.size(0) for x in out])
+        out_lengths = lengths.new_tensor([x.size(0) for x in out], dtype=torch.int32)
 
         # Pack into one tensor
         out = nn.utils.rnn.pad_sequence(out, batch_first=True)
@@ -449,10 +449,10 @@ class CTCBeamDecoder(nn.Module):
                                 c.newp.reset()
                         
             best = leaves[0]
-            decoded.append(torch.as_tensor(best.label_seq()[1:], device=device, dtype=torch.long))
+            decoded.append(torch.as_tensor(best.label_seq()[1:], device=device, dtype=torch.int32))
         
         # Calculate output lengths
-        decoded_lengths = torch.as_tensor([x.size(0) for x in decoded], device=device, dtype=torch.long)
+        decoded_lengths = torch.as_tensor([x.size(0) for x in decoded], device=device, dtype=torch.int32)
 
         # Pack into one tensor
         decoded = nn.utils.rnn.pad_sequence(decoded, batch_first=True)

@@ -94,7 +94,7 @@ class CTCTrainer:
         loss = self.ctc_loss(probs, lbls, prob_lens, lbl_lens)
 
         # Do gradient update step
-        self.optimizer.zero_grad()
+        self.optimizer.zero_grad(set_to_none=True)
         loss.backward()
         self.optimizer.step()
 
