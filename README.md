@@ -2,7 +2,7 @@
 Contained in this repository is a tool to convert image-based subtitle formats (currently only supports PGS subtitles) to a text-based subtitle format (SRT). The OCR component is a convolutional recurrent neural network (CRNN) trained with PyTorch.
 
 ## LICENSING NOTICE
-The code contained within this repository is the original work of Kirk Saunders, with the exception of the `CTCBeamSearchDecoder` and `BeamEntry` classes, which were ported from TensorFlow (see those files for the original license notice). The code is currently published here without any licensing (a license has yet to be chosen). Hence, all code within this project is not to be modified, distributed, or used in any project until otherwise noted. The only usage granted currently is to clone, build, and run the application.
+The code contained within this repository is the original work of Kirk Saunders, with the exception of the `CTCBeamDecoder` and `BeamEntry` C# classes, and the `decoder.rs` rust file, which were ported from TensorFlow (see those files for the original license notice). The code is currently published here without any licensing (a license has yet to be chosen). Hence, all code within this project is not to be modified, distributed, or used in any project until otherwise noted. The only usage granted currently is to clone, build, and run the application.
 
 ## Build-Time Dependencies
 - .NET 6.0 Runtime + SDK (either Visual Studio or Linux command-line package)
